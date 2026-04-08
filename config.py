@@ -22,5 +22,7 @@ HEADERS = {
     "Accept-Encoding": "gzip, deflate",
     "Accept-Language": "en-US,en;q=0.5",
     "Referer": BASE_URL,
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    # User-Agent is intentionally omitted — curl_cffi sets it to match the
+    # browser impersonation (safari17_0), and overriding it would cause a
+    # TLS-fingerprint/UA mismatch that Akamai detects as a bot.
 }
