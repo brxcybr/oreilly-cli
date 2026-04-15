@@ -73,17 +73,36 @@ class HttpClient:
         response.raise_for_status()
         return response.content
 
-    def _jwt_expired(self) -> bool:
-        token = self._auth_cookies.get("orm-jwt")
-        if not token:
-            return False
+    @staticmethod
+    def _decode_jwt_payload(token: str) -> dict | None:
         try:
             payload_b64 = token.split(".")[1]
             padded = payload_b64 + "=" * (4 - len(payload_b64) % 4)
-            payload = json.loads(base64.b64decode(padded))
-            return time.time() > payload.get("exp", 0) - 60
+            return json.loads(base64.b64decode(padded))
         except Exception:
-            return False
+            return None
+
+    def get_jwt_status(self) -> dict | None:
+        """Return JWT validity info without an HTTP round-trip.
+
+        Returns None if no orm-jwt cookie is present.
+        Returns dict with valid/reason/expires_at otherwise.
+        """
+        token = self._auth_cookies.get("orm-jwt")
+        if not token:
+            return None
+        payload = self._decode_jwt_payload(token)
+        if not payload:
+            return {"valid": False, "reason": "invalid_token"}
+        exp = payload.get("exp", 0)
+        expires_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(exp))
+        if time.time() > exp - 60:
+            return {"valid": False, "reason": "token_expired", "expires_at": expires_at}
+        return {"valid": True, "reason": None, "expires_at": expires_at}
+
+    def _jwt_expired(self) -> bool:
+        status = self.get_jwt_status()
+        return status is not None and not status["valid"]
 
     def reload_cookies(self):
         """Clear and reload cookies from file. Used after browser login."""

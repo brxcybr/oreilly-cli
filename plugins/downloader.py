@@ -184,8 +184,14 @@ class DownloaderPlugin(Plugin):
         html_processor = self.kernel["html_processor"]
         output_plugin = self.kernel["output"]
 
-        # Phase 1: Fetch metadata
+        # Phase 1: Validate session and fetch metadata
         report("starting", 0)
+        jwt_status = self.http.get_jwt_status()
+        if jwt_status is not None and not jwt_status["valid"]:
+            raise RuntimeError(
+                "Session token expired. Please copy fresh cookies from your browser and POST them to /api/cookies."
+            )
+
         report("fetching_metadata", 5)
         book_info = book_plugin.fetch(book_id)
 
