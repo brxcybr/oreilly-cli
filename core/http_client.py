@@ -56,22 +56,36 @@ class HttpClient:
 
     def get_json(self, url: str, **kwargs) -> dict:
         response = self.get(url, **kwargs)
-        if response.status_code == 403 and self._jwt_expired():
-            raise RuntimeError(
-                "Session token expired. Please copy fresh cookies from your browser and POST them to /api/cookies."
-            )
+        self._raise_for_auth_error(response)
         response.raise_for_status()
         return response.json()
 
     def get_text(self, url: str, **kwargs) -> str:
         response = self.get(url, **kwargs)
+        self._raise_for_auth_error(response)
         response.raise_for_status()
         return response.text
 
     def get_bytes(self, url: str, **kwargs) -> bytes:
         response = self.get(url, **kwargs)
+        self._raise_for_auth_error(response)
         response.raise_for_status()
         return response.content
+
+    def _raise_for_auth_error(self, response) -> None:
+        """Raise a descriptive RuntimeError on 4xx auth errors instead of raw HTTP errors."""
+        if response.status_code == 403:
+            if not self._auth_cookies:
+                raise RuntimeError(
+                    "Not authenticated. Please copy cookies from your browser and POST them to /api/cookies."
+                )
+            raise RuntimeError(
+                "Session token expired. Please copy fresh cookies from your browser and POST them to /api/cookies."
+            )
+        if response.status_code >= 400:
+            raise RuntimeError(
+                f"HTTP {response.status_code} fetching {response.url}"
+            )
 
     @staticmethod
     def _decode_jwt_payload(token: str) -> dict | None:
