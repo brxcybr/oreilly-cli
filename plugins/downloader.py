@@ -39,6 +39,7 @@ class DownloaderPlugin(Plugin):
     """Orchestrates the complete book download workflow."""
 
     # Format vocabulary - discoverable by any client
+    ALL_FORMATS = ("epub", "markdown", "pdf", "plaintext", "json", "chunks")
     SUPPORTED_FORMATS = frozenset([
         "epub",
         "markdown",
@@ -105,7 +106,7 @@ class DownloaderPlugin(Plugin):
         """Return format descriptions for CLI help or UI display."""
         return {
             "epub": "Standard EPUB format (default)",
-            "markdown": "Markdown files (alias: md)",
+            "markdown": "Single Markdown file (alias: md)",
             "markdown-chapters": "Separate Markdown file per chapter",
             "pdf": "Single PDF file",
             "pdf-chapters": "Separate PDF per chapter",
@@ -376,8 +377,14 @@ class DownloaderPlugin(Plugin):
         if "markdown" in formats or "md" in formats or "markdown-chapters" in formats:
             report("generating_markdown", 92)
             md_plugin = self.kernel["markdown"]
-            md_plugin.generate_book(book_info, chapters_data, book_dir)
-            result.files["markdown"] = str(book_dir / "Markdown")
+            single_file = "markdown-chapters" not in formats
+            md_path = md_plugin.generate_book(
+                book_info,
+                chapters_data,
+                book_dir,
+                single_file=single_file,
+            )
+            result.files["markdown"] = str(md_path)
 
         # PDF
         if "pdf" in formats or "all" in formats or "pdf-chapters" in formats:

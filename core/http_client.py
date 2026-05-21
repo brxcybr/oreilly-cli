@@ -16,13 +16,13 @@ class HttpClient:
 
     def __init__(self, cookies_file: Path | None = None):
         self._auth_cookies: dict = {}
+        self.cookies_file = cookies_file or config.COOKIES_FILE
         self.session = requests.Session(impersonate="safari17_0")
         self.session.headers.update(config.HEADERS)
         self.last_request_time = 0
 
-        cookies_path = cookies_file or config.COOKIES_FILE
-        if cookies_path.exists():
-            self._load_cookies(cookies_path)
+        if self.cookies_file.exists():
+            self._load_cookies(self.cookies_file)
 
     def _load_cookies(self, path: Path):
         with contextlib.suppress(json.JSONDecodeError, ValueError):
@@ -40,6 +40,28 @@ class HttpClient:
         self.session.cookies.clear()
         self.session.cookies.update(self._auth_cookies)
 
+    def _persist_auth_cookies(self):
+        self.cookies_file.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        with open(self.cookies_file, "w") as f:
+            json.dump(self._auth_cookies, f, indent=2)
+        with contextlib.suppress(OSError):
+            self.cookies_file.parent.chmod(0o700)
+            self.cookies_file.chmod(0o600)
+
+    def _capture_auth_cookies(self) -> None:
+        cookies = {
+            key: value
+            for key, value in self.session.cookies.items()
+            if value and not key.startswith(self._AKAMAI_COOKIE_PREFIXES)
+        }
+        if not cookies:
+            return
+        changed = any(self._auth_cookies.get(key) != value for key, value in cookies.items())
+        if not changed:
+            return
+        self._auth_cookies.update(cookies)
+        self._persist_auth_cookies()
+
     def _rate_limit(self):
         elapsed = time.time() - self.last_request_time
         if elapsed < config.REQUEST_DELAY:
@@ -51,8 +73,12 @@ class HttpClient:
         if not url.startswith("http"):
             url = config.BASE_URL + url
         kwargs.setdefault("timeout", config.REQUEST_TIMEOUT)
+        if self._jwt_expired():
+            self.reload_cookies()
         self._apply_auth_cookies()
-        return self.session.get(url, **kwargs)
+        response = self.session.get(url, **kwargs)
+        self._capture_auth_cookies()
+        return response
 
     def get_json(self, url: str, **kwargs) -> dict:
         response = self.get(url, **kwargs)
@@ -122,5 +148,5 @@ class HttpClient:
         """Clear and reload cookies from file. Used after browser login."""
         self._auth_cookies = {}
         self.session.cookies.clear()
-        if config.COOKIES_FILE.exists():
-            self._load_cookies(config.COOKIES_FILE)
+        if self.cookies_file.exists():
+            self._load_cookies(self.cookies_file)

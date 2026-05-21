@@ -1,11 +1,15 @@
+import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).parent
-OUTPUT_DIR = BASE_DIR / "output"
+OUTPUT_DIR = Path(os.environ.get("OREILLY_OUTPUT_DIR", BASE_DIR / "output")).expanduser()
 
 # Use data/ directory if it exists (Docker), otherwise use root (local dev)
 DATA_DIR = BASE_DIR / "data"
-if DATA_DIR.exists():
+_COOKIES_FILE_ENV = os.environ.get("OREILLY_COOKIES_FILE")
+if _COOKIES_FILE_ENV:
+    COOKIES_FILE = Path(_COOKIES_FILE_ENV).expanduser()
+elif DATA_DIR.exists():
     COOKIES_FILE = DATA_DIR / "cookies.json"
 else:
     COOKIES_FILE = BASE_DIR / "cookies.json"
