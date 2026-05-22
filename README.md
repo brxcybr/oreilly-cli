@@ -167,6 +167,17 @@ Configuration precedence:
 2. Environment variables: `OREILLY_COOKIES_FILE`, `OREILLY_OUTPUT_DIR`
 3. Existing repo defaults
 
+Common output layout:
+
+| Export | Typical output |
+|--------|----------------|
+| Combined Markdown | `<output>/<book-slug>/<Book Title>.md` |
+| Separate Markdown | `<output>/<book-slug>/Markdown/` |
+| EPUB/PDF/text/JSON/chunks | Files under the book's output directory |
+| Playlist resume manifest | `playlist-<playlist-id>-isbns.json` and `.csv` in the selected output directory |
+
+Before publishing changes publicly, keep local cookie files, exported books, playlist manifests, raw browser captures, and real restricted playlist IDs out of git. The repository ignores common local credential/output paths, but you should still review `git status --short` before committing.
+
 ## Architecture
 
 Plugin-based microkernel design:

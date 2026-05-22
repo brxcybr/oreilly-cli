@@ -29,8 +29,23 @@ Thumbs.db
 output/
 output-*/
 data/
+ref/
 cookies.json
+*.cookies.json
+oreilly-cookies*.json
+playlist-*-isbns.json
+playlist-*-isbns.csv
 *.epub
+
+# Local secrets and environment
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
 
 # Logs
 *.log

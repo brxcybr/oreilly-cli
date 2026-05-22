@@ -44,6 +44,28 @@ The MCP server can be run directly by an MCP client:
 python /absolute/path/to/oreilly-ingest-cli/mcp_server.py
 ```
 
+## Recommended First Run
+
+For a fresh checkout, use this sequence:
+
+```bash
+python oreilly_cli.py --help
+python oreilly_cli.py --cookies-file ~/.oreilly-ingest/cookies.json login
+python oreilly_cli.py --cookies-file ~/.oreilly-ingest/cookies.json status
+python oreilly_cli.py --cookies-file ~/.oreilly-ingest/cookies.json formats
+python oreilly_cli.py --cookies-file ~/.oreilly-ingest/cookies.json search "python" --limit 3
+```
+
+After authentication is working, run a small dry run before exporting content:
+
+```bash
+python oreilly_cli.py \
+  --cookies-file ~/.oreilly-ingest/cookies.json \
+  export 9798868802188 \
+  --format markdown \
+  --dry-run
+```
+
 ## Configuration
 
 Configuration can be supplied through command flags, environment variables, or repository defaults.
@@ -240,7 +262,6 @@ Fetches metadata and chapter list for a book:
 
 ```bash
 python oreilly_cli.py book 9798868802188
-python oreilly_cli.py book "https://learning.oreilly.com/library/view/azure-data-factory/9798868802188/"
 ```
 
 The direct `book` command expects a book ID today. For URL/ISBN resolution before export, use `resolve` or `export`, described below.
@@ -343,6 +364,25 @@ The JSON manifest is the durable resume source. It contains:
 
 The CSV manifest is a compact human-readable ISBN list with position, playlist ID, ISBN, title, status, output directory, and error columns.
 
+### Output Layout
+
+Each exported book gets its own directory under the selected output directory. The folder name is based on the book title and includes a `.book_id` marker for same-title conflict handling.
+
+Common generated paths:
+
+| Export | Typical output |
+|--------|----------------|
+| Combined Markdown | `<output>/<book-slug>/<Book Title>.md` |
+| Separate Markdown | `<output>/<book-slug>/Markdown/README.md` and per-chapter `.md` files |
+| EPUB | `<output>/<book-slug>/<Book Title>.epub` |
+| PDF | `<output>/<book-slug>/<Book Title>.pdf` or per-chapter PDFs |
+| Plain text | `<output>/<book-slug>/...txt` |
+| JSON/JSONL | Structured export files under the book directory |
+| Chunks | RAG-oriented chunk files under the book directory |
+| Assets | `<output>/<book-slug>/OEBPS/Images` and `<output>/<book-slug>/OEBPS/Styles` unless `--skip-images` is used |
+
+Playlist manifests are written at the top level of the selected output directory, not inside a single book directory.
+
 Export options:
 
 | Option | Purpose |
@@ -386,6 +426,63 @@ pbpaste | python oreilly_cli.py \
   --output-dir "$HOME/iCloud/Training/Data Engineering/books"
 ```
 
+## Common Workflows
+
+### Export One Book as Combined Markdown
+
+```bash
+python oreilly_cli.py \
+  --cookies-file ~/.oreilly-ingest/cookies.json \
+  export 9798868802188 \
+  --format markdown \
+  --output-style combined \
+  --output-dir "$HOME/Documents/OReillyExports"
+```
+
+### Export One Book as Separate Chapter Files
+
+```bash
+python oreilly_cli.py \
+  --cookies-file ~/.oreilly-ingest/cookies.json \
+  export 9798868802188 \
+  --format markdown \
+  --output-style separate \
+  --output-dir "$HOME/Documents/OReillyExports"
+```
+
+### Export All Supported Book-Level Outputs
+
+```bash
+python oreilly_cli.py \
+  --cookies-file ~/.oreilly-ingest/cookies.json \
+  export 9798868802188 \
+  --format all \
+  --output-dir "$HOME/Documents/OReillyExports"
+```
+
+### Export RAG Chunks
+
+```bash
+python oreilly_cli.py \
+  --cookies-file ~/.oreilly-ingest/cookies.json \
+  export 9798868802188 \
+  --format chunks \
+  --chunk-size 4000 \
+  --chunk-overlap 200 \
+  --output-dir "$HOME/Documents/OReillyExports"
+```
+
+### Export Without Downloading Images
+
+```bash
+python oreilly_cli.py \
+  --cookies-file ~/.oreilly-ingest/cookies.json \
+  export 9798868802188 \
+  --format markdown \
+  --skip-images \
+  --output-dir "$HOME/Documents/OReillyExports"
+```
+
 ## MCP Server Reference
 
 The MCP server is local stdio only. It is not a LAN-facing or public HTTP service.
@@ -424,6 +521,19 @@ Tools:
 | `oreilly_export_book` | Exports one authorized book and returns generated file paths. |
 
 MCP responses intentionally avoid inline book/chapter text. Export tools return file paths only.
+
+## Public Repo Hygiene
+
+Before publishing changes to a public repository:
+
+- do not commit `cookies.json`, cookie exports, `.env` files, private keys, or generated book output;
+- do not commit raw browser captures or restricted playlist pages under `ref/`;
+- do not commit real playlist UUIDs in examples, docs, tests, or fixtures;
+- use placeholder playlist UUIDs such as `00000000-0000-4000-8000-000000000000` in public documentation;
+- verify `git status --short` before staging;
+- scan staged changes for JWT-shaped strings, API keys, private keys, and restricted playlist IDs.
+
+This repository's `.gitignore` and `.dockerignore` exclude common local credential files, generated playlist manifests, raw reference captures, and exported book output, but you should still review staged changes before pushing.
 
 ## Architecture
 
@@ -471,6 +581,8 @@ Current tests cover:
 - chapter-selection validation;
 - auth prompt flow with mocks;
 - source resolution for book URLs, ISBNs, and playlist-shaped JSON;
+- playlist manifest generation and resume status preservation;
+- keepalive-safe cookie rotation persistence;
 - MCP validation and secret redaction helpers.
 
 Live integration tests are intentionally not included with real credentials. To validate live behavior manually:
@@ -524,10 +636,22 @@ Chapter selection is only valid for formats that support partial output. Do not 
 
 ### Export fails midway
 
-Use:
+For non-playlist sources, use:
 
 ```bash
 python oreilly_cli.py export <sources...> --continue-on-error
+```
+
+For playlist sources, prefer the manifest-backed resume flow:
+
+```bash
+pbpaste | python oreilly_cli.py \
+  --cookies-file ~/.oreilly-ingest/cookies.json \
+  export "<playlist-url>" \
+  --login-stdin \
+  --format markdown \
+  --resume \
+  --output-dir "$HOME/Documents/OReillyExports"
 ```
 
 Failures are reported per source. The CLI does not print cookie values in errors.
