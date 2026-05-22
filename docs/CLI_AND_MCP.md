@@ -109,16 +109,28 @@ Interactive import:
 python oreilly_cli.py login
 ```
 
-Clipboard-to-stdin import on macOS:
-
-```bash
-pbpaste | python oreilly_cli.py --cookies-file ~/.oreilly-ingest/cookies.json login --stdin
-```
-
-Clipboard import on macOS:
+System clipboard import:
 
 ```bash
 python oreilly_cli.py --cookies-file ~/.oreilly-ingest/cookies.json login --clipboard
+```
+
+`--clipboard` detects the host OS and tries the native clipboard reader: `pbpaste` on macOS, PowerShell `Get-Clipboard -Raw` on Windows and WSL, `wl-paste` on Wayland Linux, and `xclip` or `xsel` on X11 Linux.
+
+Clipboard-to-stdin import examples:
+
+```bash
+# macOS
+pbpaste | python oreilly_cli.py --cookies-file ~/.oreilly-ingest/cookies.json login --stdin
+
+# Windows PowerShell
+Get-Clipboard -Raw | python oreilly_cli.py --cookies-file ~/.oreilly-ingest/cookies.json login --stdin
+
+# Linux Wayland
+wl-paste | python oreilly_cli.py --cookies-file ~/.oreilly-ingest/cookies.json login --stdin
+
+# Linux X11
+xclip -selection clipboard -out | python oreilly_cli.py --cookies-file ~/.oreilly-ingest/cookies.json login --stdin
 ```
 
 File import:
@@ -186,7 +198,7 @@ python oreilly_cli.py menu
 
 Menu mode checks authentication on startup. If the session is missing or expired, it prompts for fresh cookie data, validates the session, then opens options for search, metadata lookup, export, format listing, status, and cookie refresh.
 
-For cookie refresh, menu mode defaults to reading the macOS clipboard. This avoids the common terminal limitation where a very long cookie string cannot be pasted cleanly into an interactive input line. Manual paste and file import remain available from the menu.
+For cookie refresh, menu mode defaults to reading the system clipboard. This avoids the common terminal limitation where a very long cookie string cannot be pasted cleanly into an interactive input line. Manual paste and file import remain available from the menu.
 
 For export, menu mode accepts a book ID, ISBN, book URL, or playlist URL. If the source is a playlist, it asks whether to resume completed items from the destination manifest.
 
@@ -196,7 +208,6 @@ Imports pasted cookie data and validates the session:
 
 ```bash
 python oreilly_cli.py login
-pbpaste | python oreilly_cli.py login --stdin
 python oreilly_cli.py login --clipboard
 python oreilly_cli.py login --file ~/Downloads/oreilly-cookies.json
 ```
@@ -332,10 +343,10 @@ python oreilly_cli.py export \
 Import fresh cookies and export in a single command:
 
 ```bash
-pbpaste | python oreilly_cli.py \
+python oreilly_cli.py \
   --cookies-file ~/.oreilly-ingest/cookies.json \
   export "https://learning.oreilly.com/playlists/00000000-0000-4000-8000-000000000000/" \
-  --login-stdin \
+  --login-clipboard \
   --format markdown \
   --output-style combined \
   --keepalive-interval 300 \
@@ -391,7 +402,7 @@ Export options:
 | `--separate` | Shortcut for `--output-style separate`. |
 | `--skip-images` | Do not download images. |
 | `--login-stdin` | Import fresh cookies from stdin before validating and exporting. |
-| `--login-clipboard` | Import fresh cookies from the macOS clipboard before validating and exporting. |
+| `--login-clipboard` | Import fresh cookies from the system clipboard before validating and exporting. |
 | `--login-file PATH` | Import fresh cookies from a file before validating and exporting. |
 | `--keepalive-interval N` | Send best-effort authenticated keepalive checks during export and persist rotated non-Akamai auth cookies when O'Reilly returns them. |
 | `--max-items N` | Cap resolved sources, especially playlists. Defaults to 20. |
@@ -413,10 +424,10 @@ Recommended recovery workflow after a timeout or expired cookie:
 Resume example after a timeout:
 
 ```bash
-pbpaste | python oreilly_cli.py \
+python oreilly_cli.py \
   --cookies-file ~/.oreilly-ingest/cookies.json \
   export "https://learning.oreilly.com/playlists/00000000-0000-4000-8000-000000000000/" \
-  --login-stdin \
+  --login-clipboard \
   --format markdown \
   --output-style combined \
   --keepalive-interval 300 \
@@ -614,7 +625,6 @@ Use one of the supported formats:
 Avoid shell `echo` for large cookie JSON because quoting can corrupt JSON. Prefer:
 
 ```bash
-pbpaste | python oreilly_cli.py login --stdin
 python oreilly_cli.py login --clipboard
 ```
 
@@ -643,10 +653,10 @@ python oreilly_cli.py export <sources...> --continue-on-error
 For playlist sources, prefer the manifest-backed resume flow:
 
 ```bash
-pbpaste | python oreilly_cli.py \
+python oreilly_cli.py \
   --cookies-file ~/.oreilly-ingest/cookies.json \
   export "<playlist-url>" \
-  --login-stdin \
+  --login-clipboard \
   --format markdown \
   --resume \
   --output-dir "$HOME/Documents/OReillyExports"

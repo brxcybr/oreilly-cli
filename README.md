@@ -68,7 +68,7 @@ python oreilly_cli.py menu
 
 On startup, menu mode checks the current session. If cookies are missing or expired, it shows browser DevTools instructions, waits for pasted cookie data, stores it locally, validates the session, and then opens menu options for search, metadata lookup, export, formats, status, and cookie refresh.
 
-Menu cookie refresh defaults to reading from the macOS clipboard so long cookie strings do not need to be pasted into a terminal prompt. The export menu accepts book IDs, ISBNs, book URLs, and playlist URLs; when the source is a playlist, it offers manifest-backed resume.
+Menu cookie refresh defaults to reading from the system clipboard so long cookie strings do not need to be pasted into a terminal prompt. The export menu accepts book IDs, ISBNs, book URLs, and playlist URLs; when the source is a playlist, it offers manifest-backed resume.
 
 You can also use direct commands:
 
@@ -104,10 +104,10 @@ python oreilly_cli.py export \
   --max-items 10 \
   --dry-run
 
-pbpaste | python oreilly_cli.py \
+python oreilly_cli.py \
   --cookies-file ~/.oreilly-ingest/cookies.json \
   export "https://learning.oreilly.com/playlists/00000000-0000-4000-8000-000000000000/" \
-  --login-stdin \
+  --login-clipboard \
   --format markdown \
   --output-style combined \
   --keepalive-interval 300 \
@@ -130,9 +130,26 @@ copy(document.cookie)
 ```
 
 ```bash
-pbpaste | python oreilly_cli.py --cookies-file ~/.oreilly-ingest/cookies.json login --stdin
 python oreilly_cli.py --cookies-file ~/.oreilly-ingest/cookies.json login --clipboard
 python oreilly_cli.py --cookies-file ~/.oreilly-ingest/cookies.json login --file ~/Downloads/oreilly-cookies.json
+```
+
+`--clipboard` and `--login-clipboard` detect the host OS and try the native clipboard reader: `pbpaste` on macOS, PowerShell `Get-Clipboard -Raw` on Windows and WSL, `wl-paste` on Wayland Linux, and `xclip` or `xsel` on X11 Linux.
+
+If you prefer stdin, pipe from the clipboard command for your platform:
+
+```bash
+# macOS
+pbpaste | python oreilly_cli.py --cookies-file ~/.oreilly-ingest/cookies.json login --stdin
+
+# Windows PowerShell
+Get-Clipboard -Raw | python oreilly_cli.py --cookies-file ~/.oreilly-ingest/cookies.json login --stdin
+
+# Linux Wayland
+wl-paste | python oreilly_cli.py --cookies-file ~/.oreilly-ingest/cookies.json login --stdin
+
+# Linux X11
+xclip -selection clipboard -out | python oreilly_cli.py --cookies-file ~/.oreilly-ingest/cookies.json login --stdin
 ```
 
 For one-shot exports, pass fresh cookies directly to `export` with `--login-stdin`, `--login-clipboard`, or `--login-file`. The CLI imports and validates the cookies before starting the export in the same process.

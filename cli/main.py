@@ -5,7 +5,9 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import re
+import shutil
 import subprocess
 import sys
 import threading
@@ -74,7 +76,7 @@ def _build_parser() -> argparse.ArgumentParser:
     _add_runtime_options(login)
     login_source = login.add_mutually_exclusive_group()
     login_source.add_argument("--stdin", action="store_true", help="Read cookie data from stdin.")
-    login_source.add_argument("--clipboard", action="store_true", help="Read cookie data from the macOS clipboard using pbpaste.")
+    login_source.add_argument("--clipboard", action="store_true", help="Read cookie data from the system clipboard.")
     login_source.add_argument("--file", help="Read cookie data from a file.")
     login.set_defaults(func=cmd_login)
 
@@ -126,7 +128,7 @@ def _build_parser() -> argparse.ArgumentParser:
     cookie_source.add_argument(
         "--login-clipboard",
         action="store_true",
-        help="Import fresh cookies from the macOS clipboard before validating and exporting.",
+        help="Import fresh cookies from the system clipboard before validating and exporting.",
     )
     cookie_source.add_argument(
         "--login-file",
@@ -494,16 +496,91 @@ def _import_export_cookies(args) -> None:
 
 
 def _read_clipboard() -> str:
-    try:
-        result = subprocess.run(
-            ["pbpaste"],
-            check=True,
-            capture_output=True,
-            text=True,
+    attempted: list[str] = []
+    for command in _clipboard_commands():
+        executable = command[0]
+        if shutil.which(executable) is None:
+            continue
+
+        attempted.append(_format_clipboard_command(command))
+        try:
+            result = subprocess.run(
+                command,
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+        except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+            continue
+
+        if result.stdout.strip():
+            return result.stdout
+
+    tried = ", ".join(attempted) if attempted else "no supported clipboard command found"
+    raise RuntimeError(
+        "Could not read cookie data from the system clipboard. "
+        f"Tried {tried}. Install/use pbpaste on macOS, PowerShell Get-Clipboard on "
+        "Windows or WSL, wl-paste on Wayland Linux, xclip or xsel on X11 Linux, "
+        "or use --stdin/--file."
+    )
+
+
+def _clipboard_commands() -> list[list[str]]:
+    if sys.platform == "darwin":
+        return [["pbpaste"]]
+
+    if os.name == "nt":
+        return [
+            ["powershell", "-NoProfile", "-Command", "Get-Clipboard -Raw"],
+            ["pwsh", "-NoProfile", "-Command", "Get-Clipboard -Raw"],
+        ]
+
+    commands: list[list[str]] = []
+    if _is_wsl():
+        commands.extend(
+            [
+                ["powershell.exe", "-NoProfile", "-Command", "Get-Clipboard -Raw"],
+                ["pwsh.exe", "-NoProfile", "-Command", "Get-Clipboard -Raw"],
+            ]
         )
-    except (OSError, subprocess.CalledProcessError) as exc:
-        raise RuntimeError("Could not read from clipboard with pbpaste.") from exc
-    return result.stdout
+    if os.environ.get("WAYLAND_DISPLAY"):
+        commands.extend([["wl-paste", "--no-newline"], ["wl-paste"]])
+    if os.environ.get("DISPLAY"):
+        commands.extend(
+            [
+                ["xclip", "-selection", "clipboard", "-out"],
+                ["xsel", "--clipboard", "--output"],
+            ]
+        )
+
+    for fallback in (
+        ["wl-paste", "--no-newline"],
+        ["wl-paste"],
+        ["xclip", "-selection", "clipboard", "-out"],
+        ["xsel", "--clipboard", "--output"],
+    ):
+        if fallback not in commands:
+            commands.append(fallback)
+
+    return commands
+
+
+def _is_wsl() -> bool:
+    if os.environ.get("WSL_DISTRO_NAME") or os.environ.get("WSL_INTEROP"):
+        return True
+
+    try:
+        return "microsoft" in Path("/proc/version").read_text(encoding="utf-8").lower()
+    except OSError:
+        return False
+
+
+def _format_clipboard_command(command: list[str]) -> str:
+    executable = command[0].lower()
+    if executable in {"powershell", "powershell.exe", "pwsh", "pwsh.exe"}:
+        return f"{command[0]} Get-Clipboard"
+    return command[0]
 
 
 def _prompt_cookie_text() -> str:
@@ -533,7 +610,7 @@ def _prompt_cookie_source() -> str:
         print("Open https://learning.oreilly.com, confirm you are signed in, then run this in the browser console:")
         print(COOKIE_COPY_SNIPPET)
         print("\nChoose how to import the copied cookie data:")
-        print("1. Read from macOS clipboard (recommended)")
+        print("1. Read from system clipboard (recommended)")
         print("2. Read from file")
         print("3. Paste manually")
         print("0. Cancel")

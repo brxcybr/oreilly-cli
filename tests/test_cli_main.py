@@ -167,6 +167,54 @@ class CliMainTests(unittest.TestCase):
                 with patch.object(cli_main, "_read_clipboard", return_value="orm-jwt=dummy"):
                     self.assertEqual(cli_main._prompt_cookie_source(), "orm-jwt=dummy")
 
+    def test_clipboard_commands_use_macos_pbpaste(self):
+        with patch.object(cli_main.sys, "platform", "darwin"):
+            self.assertEqual(cli_main._clipboard_commands(), [["pbpaste"]])
+
+    def test_clipboard_commands_use_windows_powershell(self):
+        with patch.object(cli_main.sys, "platform", "win32"):
+            with patch.object(cli_main.os, "name", "nt"):
+                commands = cli_main._clipboard_commands()
+
+        self.assertIn(["powershell", "-NoProfile", "-Command", "Get-Clipboard -Raw"], commands)
+        self.assertIn(["pwsh", "-NoProfile", "-Command", "Get-Clipboard -Raw"], commands)
+
+    def test_clipboard_commands_use_wayland_then_linux_fallbacks(self):
+        with patch.object(cli_main.sys, "platform", "linux"):
+            with patch.object(cli_main.os, "name", "posix"):
+                with patch.dict(cli_main.os.environ, {"WAYLAND_DISPLAY": "wayland-0"}, clear=True):
+                    with patch.object(cli_main, "_is_wsl", return_value=False):
+                        commands = cli_main._clipboard_commands()
+
+        self.assertEqual(commands[0], ["wl-paste", "--no-newline"])
+        self.assertIn(["xclip", "-selection", "clipboard", "-out"], commands)
+        self.assertIn(["xsel", "--clipboard", "--output"], commands)
+
+    def test_clipboard_commands_use_wsl_powershell_before_linux_fallbacks(self):
+        with patch.object(cli_main.sys, "platform", "linux"):
+            with patch.object(cli_main.os, "name", "posix"):
+                with patch.dict(cli_main.os.environ, {}, clear=True):
+                    with patch.object(cli_main, "_is_wsl", return_value=True):
+                        commands = cli_main._clipboard_commands()
+
+        self.assertEqual(commands[0], ["powershell.exe", "-NoProfile", "-Command", "Get-Clipboard -Raw"])
+        self.assertIn(["xclip", "-selection", "clipboard", "-out"], commands)
+
+    def test_read_clipboard_uses_first_available_command(self):
+        with patch.object(cli_main, "_clipboard_commands", return_value=[["missingclip"], ["clipcmd", "--read"]]):
+            with patch.object(cli_main.shutil, "which", side_effect=lambda command: f"/usr/bin/{command}" if command == "clipcmd" else None):
+                with patch.object(cli_main.subprocess, "run", return_value=SimpleNamespace(stdout="orm-jwt=dummy\n")) as run:
+                    self.assertEqual(cli_main._read_clipboard(), "orm-jwt=dummy\n")
+
+        run.assert_called_once()
+        self.assertEqual(run.call_args.args[0], ["clipcmd", "--read"])
+
+    def test_read_clipboard_explains_fallbacks_when_unavailable(self):
+        with patch.object(cli_main, "_clipboard_commands", return_value=[["missingclip"]]):
+            with patch.object(cli_main.shutil, "which", return_value=None):
+                with self.assertRaisesRegex(RuntimeError, "system clipboard"):
+                    cli_main._read_clipboard()
+
     def test_import_export_cookies_from_stdin(self):
         args = SimpleNamespace(login_stdin=True, login_clipboard=False, login_file=None)
         with patch.object(cli_main.sys.stdin, "read", return_value="orm-jwt=dummy"):
