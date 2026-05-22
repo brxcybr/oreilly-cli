@@ -21,8 +21,19 @@ build/
 *.swp
 *.swo
 
-# OS
+# OS / filesystem artifacts
 .DS_Store
+._*
+.AppleDouble
+.LSOverride
+Icon?
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
 Thumbs.db
 
 # Project specific

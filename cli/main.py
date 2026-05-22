@@ -1,4 +1,4 @@
-"""Command-line interface for O'Reilly CLI."""
+"""Command-line wrapper for the O'Reilly export tool."""
 
 from __future__ import annotations
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Local stdio MCP server for O'Reilly CLI.
+"""Local stdio MCP wrapper for the O'Reilly export tool.
 
 This module intentionally stays thin: it adapts MCP tool calls to the existing
 kernel plugins and never exposes cookie/session material to clients.

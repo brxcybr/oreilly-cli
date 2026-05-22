@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-O'Reilly CLI uses a microkernel architecture to convert books to LLM-ready formats (Markdown, Text, JSON) for AI interaction. It also supports PDF and EPUB. Python 3.10+, vanilla Python with minimal dependencies.
+O'Reilly CLI is a CLI/MCP wrapper on top of the original O'Reilly download/export tool. It uses the original microkernel architecture to convert books to LLM-ready formats (Markdown, Text, JSON) for AI interaction, and also supports PDF and EPUB. Python 3.10+, vanilla Python with minimal dependencies.
 
 ## Commands
 

@@ -1,13 +1,13 @@
 # CLI and MCP Fork Guide
 
-This fork adds two local automation surfaces on top of the existing O'Reilly CLI plugin kernel:
+This fork is a CLI/MCP wrapper on top of the original O'Reilly download/export tool's plugin kernel. It adds two local automation surfaces:
 
 - `oreilly_cli.py`: a one-shot and interactive command-line interface.
 - `mcp_server.py`: a local stdio MCP server for MCP-compatible desktop clients.
 
 Both paths use the same underlying repository code for authentication checks, search, metadata retrieval, format discovery, and export. They do not run Docker, do not require the web UI to stay open, and do not expose cookies, JWTs, auth headers, or full book text through command metadata responses.
 
-The published fork name is `oreilly-cli`. Documentation, local path examples, Docker service names, and MCP client examples use that name, while inherited plugin/module names remain unchanged when they describe upstream architecture.
+The published fork name is `oreilly-cli`. Documentation, local path examples, Docker service names, and MCP client examples use that name, while inherited plugin/module names remain unchanged when they describe original upstream architecture.
 
 ## Scope and Guardrails
 
@@ -548,7 +548,7 @@ This repository's `.gitignore` and `.dockerignore` exclude common local credenti
 
 ## Architecture
 
-The fork keeps the CLI and MCP wrappers thin:
+The fork keeps the CLI and MCP wrappers thin over the original tool:
 
 | Capability | Existing implementation used |
 |------------|------------------------------|

@@ -2,7 +2,7 @@
 
 We're in the AI era. You want to chat with your favorite technical books using Claude Code, Cursor, or any LLM tool. This gets you there.
 
-Export any O'Reilly book to Markdown, PDF, EPUB, JSON, or plain text. Download by chapters so you don't burn through your context window.
+O'Reilly CLI is a command-line wrapper on top of the original O'Reilly download/export tool. It keeps the original plugin-based book export engine and adds local CLI and MCP automation for Markdown, PDF, EPUB, JSON, and plain text workflows.
 
 > Requires a valid O'Reilly Learning subscription.
 
@@ -16,7 +16,7 @@ For personal and educational use only. Please read the [O'Reilly Terms of Servic
 
 Inspired by [safaribooks](https://github.com/lorenzodifuccia/safaribooks) by [@lorenzodifuccia](https://github.com/lorenzodifuccia).
 
-This repository is maintained as the `brxcybr/oreilly-cli` fork. User-facing paths, examples, and local service names use `oreilly-cli`; inherited plugin/module names are left intact where they make upstream comparison and future update work clearer.
+This repository is maintained as the `brxcybr/oreilly-cli` fork. User-facing paths, examples, and local service names use `oreilly-cli`; inherited plugin/module names and architecture references are left intact where they make upstream comparison and future update work clearer.
 
 
 ## Features
@@ -193,7 +193,7 @@ Before publishing changes publicly, keep local cookie files, exported books, pla
 
 ## Architecture
 
-Plugin-based microkernel design:
+The wrapper uses the original tool's plugin-based microkernel design:
 
 | Layer | Components |
 |-------|------------|
@@ -216,7 +216,7 @@ GET  /api/progress     - SSE stream
 
 Full MCP documentation is available in [docs/CLI_AND_MCP.md](docs/CLI_AND_MCP.md).
 
-This clone also includes a local-only stdio MCP server at `mcp_server.py`. It is intended for personal, authorized use with a valid O'Reilly Learning subscription. The MCP server wraps the existing plugin kernel; it does not expose cookies, JWTs, headers, or book/chapter text through MCP responses.
+This clone also includes a local-only stdio MCP server at `mcp_server.py`. It is intended for personal, authorized use with a valid O'Reilly Learning subscription. The MCP server wraps the original tool's plugin kernel; it does not expose cookies, JWTs, headers, or book/chapter text through MCP responses.
 
 Install dependencies:
 
