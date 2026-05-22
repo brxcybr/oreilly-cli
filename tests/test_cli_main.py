@@ -8,10 +8,19 @@ from unittest.mock import patch
 import config
 from cli import main as cli_main
 from cli.resolver import ResolvedSource
+from core.version import __version__
 from plugins.downloader import DownloadProgress
 
 
 class CliMainTests(unittest.TestCase):
+    def test_version_option_reports_version(self):
+        parser = cli_main._build_parser()
+        with self.assertRaises(SystemExit):
+            with patch("sys.stdout") as stdout:
+                parser.parse_args(["--version"])
+
+        self.assertIn(__version__, "".join(call.args[0] for call in stdout.write.call_args_list))
+
     def test_validate_formats_rejects_unknown_format(self):
         with self.assertRaisesRegex(ValueError, "Unsupported format"):
             cli_main._validate_formats(["epub,bad-format"])
@@ -53,6 +62,14 @@ class CliMainTests(unittest.TestCase):
         finally:
             config.COOKIES_FILE = original_cookies
             config.OUTPUT_DIR = original_output
+
+    def test_get_auth_status_includes_version(self):
+        fake_auth = SimpleNamespace(get_status=lambda: {"valid": True})
+        fake_kernel = {"auth": fake_auth}
+        with patch.object(cli_main, "_new_kernel", return_value=fake_kernel):
+            status = cli_main.get_auth_status()
+
+        self.assertEqual(status["version"], __version__)
 
     def test_output_dir_is_accepted_after_export_command(self):
         parser = cli_main._build_parser()

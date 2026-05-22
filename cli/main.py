@@ -17,6 +17,7 @@ from typing import Any
 import config
 from cli.cookies import CookieImportError, import_cookie_text, cookie_permission_warnings
 from cli.resolver import is_playlist_source, resolve_sources
+from core.version import __version__
 from plugins.chunking import ChunkConfig
 from plugins.downloader import DownloaderPlugin
 
@@ -66,6 +67,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("-c", "--cookies-file", help="Path to local cookies JSON file.")
     parser.add_argument("-o", "--output-dir", help="Default export directory.")
     parser.add_argument("-j", "--json", action="store_true", help="Print machine-readable JSON output.")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
 
     subparsers = parser.add_subparsers(dest="command")
 
@@ -455,6 +457,7 @@ def get_auth_status() -> dict[str, Any]:
     kernel = _new_kernel()
     status = dict(kernel["auth"].get_status())
     safe = {
+        "version": __version__,
         "valid": bool(status.get("valid")),
         "reason": status.get("reason"),
         "expires_at": status.get("expires_at"),
@@ -1155,6 +1158,8 @@ def _print_result(args, payload: dict[str, Any], printer) -> None:
 
 
 def _print_status(status: dict[str, Any]) -> None:
+    if status.get("version"):
+        print(f"Version: {status['version']}")
     print(f"Authenticated: {'yes' if status.get('valid') else 'no'}")
     if status.get("reason"):
         print(f"Reason: {status['reason']}")

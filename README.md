@@ -7,6 +7,7 @@ O'Reilly CLI is a local CLI and MCP wrapper on top of the original O'Reilly down
 This repository is maintained as the `brxcybr/oreilly-cli` fork. User-facing paths, examples, and local service names use `oreilly-cli`; inherited plugin/module names are left intact where they make upstream comparison and future updates easier.
 
 For the full command reference and troubleshooting notes, see [docs/CLI_AND_MCP.md](docs/CLI_AND_MCP.md).
+For release preparation, versioning, and validation gates, see [docs/RELEASE.md](docs/RELEASE.md).
 
 ## Scope
 

@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import mcp_server
+from core.version import __version__
 
 
 class _FakeKernel:
@@ -57,6 +58,7 @@ class McpServerTests(unittest.TestCase):
             result = mcp_server.oreilly_status()
 
         serialized = repr(result)
+        self.assertEqual(result["version"], __version__)
         self.assertFalse(result["valid"])
         self.assertIn("refresh cookies manually", result["message"].lower())
         self.assertNotIn("dummy", serialized)

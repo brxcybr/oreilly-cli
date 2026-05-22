@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 import config
+from core.version import __version__
 from plugins.downloader import DownloaderPlugin
 
 try:
@@ -177,6 +178,7 @@ def oreilly_status() -> dict[str, Any]:
         kernel = _new_kernel()
         status = dict(kernel["auth"].get_status())
         safe = {
+            "version": __version__,
             "valid": bool(status.get("valid")),
             "reason": status.get("reason"),
             "expires_at": status.get("expires_at"),
