@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Local stdio MCP server for O'Reilly Ingest.
+"""Local stdio MCP server for O'Reilly CLI.
 
 This module intentionally stays thin: it adapts MCP tool calls to the existing
 kernel plugins and never exposes cookie/session material to clients.
@@ -299,7 +299,7 @@ def oreilly_export_book(
 
 
 if FastMCP is not None:
-    mcp = FastMCP("oreilly-ingest")
+    mcp = FastMCP("oreilly-cli")
     mcp.tool()(oreilly_status)
     mcp.tool()(oreilly_list_formats)
     mcp.tool()(oreilly_search)

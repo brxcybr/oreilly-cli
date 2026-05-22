@@ -1,4 +1,4 @@
-"""Command-line interface for O'Reilly Ingest."""
+"""Command-line interface for O'Reilly CLI."""
 
 from __future__ import annotations
 
@@ -335,7 +335,7 @@ def cmd_resolve(args) -> int:
 
 
 def cmd_menu(args) -> int:
-    print("O'Reilly Ingest CLI")
+    print("O'Reilly CLI")
     print(f"Cookies: {config.COOKIES_FILE}")
     print(f"Output:  {config.OUTPUT_DIR}")
 

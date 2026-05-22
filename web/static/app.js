@@ -1,5 +1,5 @@
 /**
- * O'Reilly Ingest - Frontend Application
+ * O'Reilly CLI - Frontend Application
  * Redesigned with Tailwind CSS
  */
 

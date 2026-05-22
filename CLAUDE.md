@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-O'Reilly book ingest tool using a microkernel architecture. Converts books to LLM-ready formats (Markdown, Text, JSON) for AI interaction. Also supports PDF and EPUB. Python 3.10+, vanilla Python with minimal dependencies.
+O'Reilly CLI uses a microkernel architecture to convert books to LLM-ready formats (Markdown, Text, JSON) for AI interaction. It also supports PDF and EPUB. Python 3.10+, vanilla Python with minimal dependencies.
 
 ## Commands
 

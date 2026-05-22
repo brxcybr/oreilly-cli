@@ -1,4 +1,4 @@
-# O'Reilly Ingest
+# O'Reilly CLI
 
 We're in the AI era. You want to chat with your favorite technical books using Claude Code, Cursor, or any LLM tool. This gets you there.
 
@@ -15,6 +15,8 @@ For personal and educational use only. Please read the [O'Reilly Terms of Servic
 ## Credits
 
 Inspired by [safaribooks](https://github.com/lorenzodifuccia/safaribooks) by [@lorenzodifuccia](https://github.com/lorenzodifuccia).
+
+This repository is maintained as the `brxcybr/oreilly-cli` fork. User-facing paths, examples, and local service names use `oreilly-cli`; inherited plugin/module names are left intact where they make upstream comparison and future update work clearer.
 
 
 ## Features
@@ -33,16 +35,16 @@ Inspired by [safaribooks](https://github.com/lorenzodifuccia/safaribooks) by [@l
 ### Docker
 
 ```bash
-git clone https://github.com/brxcybr/oreilly-ingest-cli.git
-cd oreilly-ingest-cli
+git clone https://github.com/brxcybr/oreilly-cli.git
+cd oreilly-cli
 docker compose up -d
 ```
 
 ### Python
 
 ```bash
-git clone https://github.com/brxcybr/oreilly-ingest-cli.git
-cd oreilly-ingest-cli
+git clone https://github.com/brxcybr/oreilly-cli.git
+cd oreilly-cli
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 python main.py
@@ -105,7 +107,7 @@ python oreilly_cli.py export \
   --dry-run
 
 python oreilly_cli.py \
-  --cookies-file ~/.oreilly-ingest/cookies.json \
+  --cookies-file ~/.oreilly-cli/cookies.json \
   export "https://learning.oreilly.com/playlists/00000000-0000-4000-8000-000000000000/" \
   --login-clipboard \
   --format markdown \
@@ -130,8 +132,8 @@ copy(document.cookie)
 ```
 
 ```bash
-python oreilly_cli.py --cookies-file ~/.oreilly-ingest/cookies.json login --clipboard
-python oreilly_cli.py --cookies-file ~/.oreilly-ingest/cookies.json login --file ~/Downloads/oreilly-cookies.json
+python oreilly_cli.py --cookies-file ~/.oreilly-cli/cookies.json login --clipboard
+python oreilly_cli.py --cookies-file ~/.oreilly-cli/cookies.json login --file ~/Downloads/oreilly-cookies.json
 ```
 
 `--clipboard` and `--login-clipboard` detect the host OS and try the native clipboard reader: `pbpaste` on macOS, PowerShell `Get-Clipboard -Raw` on Windows and WSL, `wl-paste` on Wayland Linux, and `xclip` or `xsel` on X11 Linux.
@@ -140,16 +142,16 @@ If you prefer stdin, pipe from the clipboard command for your platform:
 
 ```bash
 # macOS
-pbpaste | python oreilly_cli.py --cookies-file ~/.oreilly-ingest/cookies.json login --stdin
+pbpaste | python oreilly_cli.py --cookies-file ~/.oreilly-cli/cookies.json login --stdin
 
 # Windows PowerShell
-Get-Clipboard -Raw | python oreilly_cli.py --cookies-file ~/.oreilly-ingest/cookies.json login --stdin
+Get-Clipboard -Raw | python oreilly_cli.py --cookies-file ~/.oreilly-cli/cookies.json login --stdin
 
 # Linux Wayland
-wl-paste | python oreilly_cli.py --cookies-file ~/.oreilly-ingest/cookies.json login --stdin
+wl-paste | python oreilly_cli.py --cookies-file ~/.oreilly-cli/cookies.json login --stdin
 
 # Linux X11
-xclip -selection clipboard -out | python oreilly_cli.py --cookies-file ~/.oreilly-ingest/cookies.json login --stdin
+xclip -selection clipboard -out | python oreilly_cli.py --cookies-file ~/.oreilly-cli/cookies.json login --stdin
 ```
 
 For one-shot exports, pass fresh cookies directly to `export` with `--login-stdin`, `--login-clipboard`, or `--login-file`. The CLI imports and validates the cookies before starting the export in the same process.
@@ -225,7 +227,7 @@ pip install -r requirements.txt
 Run the server directly:
 
 ```bash
-python /absolute/path/to/oreilly-ingest-cli/mcp_server.py
+python /absolute/path/to/oreilly-cli/mcp_server.py
 ```
 
 Available tools:
@@ -252,11 +254,11 @@ Example MCP client configuration:
 ```json
 {
   "mcpServers": {
-    "oreilly-ingest": {
+    "oreilly-cli": {
       "command": "python",
-      "args": ["/absolute/path/to/oreilly-ingest-cli/mcp_server.py"],
+      "args": ["/absolute/path/to/oreilly-cli/mcp_server.py"],
       "env": {
-        "OREILLY_COOKIES_FILE": "/Users/<user>/.oreilly-ingest/cookies.json",
+        "OREILLY_COOKIES_FILE": "/Users/<user>/.oreilly-cli/cookies.json",
         "OREILLY_OUTPUT_DIR": "/Users/<user>/Documents/OReillyExports"
       }
     }
@@ -287,17 +289,17 @@ MIT
   <source
     media="(prefers-color-scheme: dark)"
     srcset="
-      https://api.star-history.com/svg?repos=Mosaibah/oreilly-ingest&type=Date&theme=dark
+      https://api.star-history.com/svg?repos=brxcybr/oreilly-cli&type=Date&theme=dark
     "
   />
   <source
     media="(prefers-color-scheme: light)"
     srcset="
-      https://api.star-history.com/svg?repos=Mosaibah/oreilly-ingest&type=Date
+      https://api.star-history.com/svg?repos=brxcybr/oreilly-cli&type=Date
     "
   />
   <img
     alt="Star History Chart"
-    src="https://api.star-history.com/svg?repos=Mosaibah/oreilly-ingest&type=Date"
+    src="https://api.star-history.com/svg?repos=brxcybr/oreilly-cli&type=Date"
   />
 </picture>

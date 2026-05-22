@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Convenience entry point for the O'Reilly Ingest CLI."""
+"""Convenience entry point for O'Reilly CLI."""
 
 from cli.main import main
 

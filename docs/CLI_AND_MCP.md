@@ -1,11 +1,13 @@
 # CLI and MCP Fork Guide
 
-This fork adds two local automation surfaces on top of the existing O'Reilly Ingest plugin kernel:
+This fork adds two local automation surfaces on top of the existing O'Reilly CLI plugin kernel:
 
 - `oreilly_cli.py`: a one-shot and interactive command-line interface.
 - `mcp_server.py`: a local stdio MCP server for MCP-compatible desktop clients.
 
 Both paths use the same underlying repository code for authentication checks, search, metadata retrieval, format discovery, and export. They do not run Docker, do not require the web UI to stay open, and do not expose cookies, JWTs, auth headers, or full book text through command metadata responses.
+
+The published fork name is `oreilly-cli`. Documentation, local path examples, Docker service names, and MCP client examples use that name, while inherited plugin/module names remain unchanged when they describe upstream architecture.
 
 ## Scope and Guardrails
 
@@ -41,7 +43,7 @@ python oreilly_cli.py --help
 The MCP server can be run directly by an MCP client:
 
 ```bash
-python /absolute/path/to/oreilly-ingest-cli/mcp_server.py
+python /absolute/path/to/oreilly-cli/mcp_server.py
 ```
 
 ## Recommended First Run
@@ -50,17 +52,17 @@ For a fresh checkout, use this sequence:
 
 ```bash
 python oreilly_cli.py --help
-python oreilly_cli.py --cookies-file ~/.oreilly-ingest/cookies.json login
-python oreilly_cli.py --cookies-file ~/.oreilly-ingest/cookies.json status
-python oreilly_cli.py --cookies-file ~/.oreilly-ingest/cookies.json formats
-python oreilly_cli.py --cookies-file ~/.oreilly-ingest/cookies.json search "python" --limit 3
+python oreilly_cli.py --cookies-file ~/.oreilly-cli/cookies.json login
+python oreilly_cli.py --cookies-file ~/.oreilly-cli/cookies.json status
+python oreilly_cli.py --cookies-file ~/.oreilly-cli/cookies.json formats
+python oreilly_cli.py --cookies-file ~/.oreilly-cli/cookies.json search "python" --limit 3
 ```
 
 After authentication is working, run a small dry run before exporting content:
 
 ```bash
 python oreilly_cli.py \
-  --cookies-file ~/.oreilly-ingest/cookies.json \
+  --cookies-file ~/.oreilly-cli/cookies.json \
   export 9798868802188 \
   --format markdown \
   --dry-run
@@ -79,7 +81,7 @@ Precedence:
 Recommended local paths:
 
 ```bash
-export OREILLY_COOKIES_FILE="$HOME/.oreilly-ingest/cookies.json"
+export OREILLY_COOKIES_FILE="$HOME/.oreilly-cli/cookies.json"
 export OREILLY_OUTPUT_DIR="$HOME/Documents/OReillyExports"
 ```
 
@@ -112,7 +114,7 @@ python oreilly_cli.py login
 System clipboard import:
 
 ```bash
-python oreilly_cli.py --cookies-file ~/.oreilly-ingest/cookies.json login --clipboard
+python oreilly_cli.py --cookies-file ~/.oreilly-cli/cookies.json login --clipboard
 ```
 
 `--clipboard` detects the host OS and tries the native clipboard reader: `pbpaste` on macOS, PowerShell `Get-Clipboard -Raw` on Windows and WSL, `wl-paste` on Wayland Linux, and `xclip` or `xsel` on X11 Linux.
@@ -121,22 +123,22 @@ Clipboard-to-stdin import examples:
 
 ```bash
 # macOS
-pbpaste | python oreilly_cli.py --cookies-file ~/.oreilly-ingest/cookies.json login --stdin
+pbpaste | python oreilly_cli.py --cookies-file ~/.oreilly-cli/cookies.json login --stdin
 
 # Windows PowerShell
-Get-Clipboard -Raw | python oreilly_cli.py --cookies-file ~/.oreilly-ingest/cookies.json login --stdin
+Get-Clipboard -Raw | python oreilly_cli.py --cookies-file ~/.oreilly-cli/cookies.json login --stdin
 
 # Linux Wayland
-wl-paste | python oreilly_cli.py --cookies-file ~/.oreilly-ingest/cookies.json login --stdin
+wl-paste | python oreilly_cli.py --cookies-file ~/.oreilly-cli/cookies.json login --stdin
 
 # Linux X11
-xclip -selection clipboard -out | python oreilly_cli.py --cookies-file ~/.oreilly-ingest/cookies.json login --stdin
+xclip -selection clipboard -out | python oreilly_cli.py --cookies-file ~/.oreilly-cli/cookies.json login --stdin
 ```
 
 File import:
 
 ```bash
-python oreilly_cli.py --cookies-file ~/.oreilly-ingest/cookies.json login --file ~/Downloads/oreilly-cookies.json
+python oreilly_cli.py --cookies-file ~/.oreilly-cli/cookies.json login --file ~/Downloads/oreilly-cookies.json
 ```
 
 For large cookie blobs, prefer `--stdin`, `--clipboard`, or `--file`. Terminal interactive paste can hit line-buffer limits before the CLI receives the complete cookie data.
@@ -344,7 +346,7 @@ Import fresh cookies and export in a single command:
 
 ```bash
 python oreilly_cli.py \
-  --cookies-file ~/.oreilly-ingest/cookies.json \
+  --cookies-file ~/.oreilly-cli/cookies.json \
   export "https://learning.oreilly.com/playlists/00000000-0000-4000-8000-000000000000/" \
   --login-clipboard \
   --format markdown \
@@ -425,7 +427,7 @@ Resume example after a timeout:
 
 ```bash
 python oreilly_cli.py \
-  --cookies-file ~/.oreilly-ingest/cookies.json \
+  --cookies-file ~/.oreilly-cli/cookies.json \
   export "https://learning.oreilly.com/playlists/00000000-0000-4000-8000-000000000000/" \
   --login-clipboard \
   --format markdown \
@@ -441,7 +443,7 @@ python oreilly_cli.py \
 
 ```bash
 python oreilly_cli.py \
-  --cookies-file ~/.oreilly-ingest/cookies.json \
+  --cookies-file ~/.oreilly-cli/cookies.json \
   export 9798868802188 \
   --format markdown \
   --output-style combined \
@@ -452,7 +454,7 @@ python oreilly_cli.py \
 
 ```bash
 python oreilly_cli.py \
-  --cookies-file ~/.oreilly-ingest/cookies.json \
+  --cookies-file ~/.oreilly-cli/cookies.json \
   export 9798868802188 \
   --format markdown \
   --output-style separate \
@@ -463,7 +465,7 @@ python oreilly_cli.py \
 
 ```bash
 python oreilly_cli.py \
-  --cookies-file ~/.oreilly-ingest/cookies.json \
+  --cookies-file ~/.oreilly-cli/cookies.json \
   export 9798868802188 \
   --format all \
   --output-dir "$HOME/Documents/OReillyExports"
@@ -473,7 +475,7 @@ python oreilly_cli.py \
 
 ```bash
 python oreilly_cli.py \
-  --cookies-file ~/.oreilly-ingest/cookies.json \
+  --cookies-file ~/.oreilly-cli/cookies.json \
   export 9798868802188 \
   --format chunks \
   --chunk-size 4000 \
@@ -485,7 +487,7 @@ python oreilly_cli.py \
 
 ```bash
 python oreilly_cli.py \
-  --cookies-file ~/.oreilly-ingest/cookies.json \
+  --cookies-file ~/.oreilly-cli/cookies.json \
   export 9798868802188 \
   --format markdown \
   --skip-images \
@@ -499,7 +501,7 @@ The MCP server is local stdio only. It is not a LAN-facing or public HTTP servic
 Run directly:
 
 ```bash
-python /absolute/path/to/oreilly-ingest-cli/mcp_server.py
+python /absolute/path/to/oreilly-cli/mcp_server.py
 ```
 
 Example client configuration:
@@ -507,11 +509,11 @@ Example client configuration:
 ```json
 {
   "mcpServers": {
-    "oreilly-ingest": {
+    "oreilly-cli": {
       "command": "python",
-      "args": ["/absolute/path/to/oreilly-ingest-cli/mcp_server.py"],
+      "args": ["/absolute/path/to/oreilly-cli/mcp_server.py"],
       "env": {
-        "OREILLY_COOKIES_FILE": "/Users/<user>/.oreilly-ingest/cookies.json",
+        "OREILLY_COOKIES_FILE": "/Users/<user>/.oreilly-cli/cookies.json",
         "OREILLY_OUTPUT_DIR": "/Users/<user>/Documents/OReillyExports"
       }
     }
@@ -654,7 +656,7 @@ For playlist sources, prefer the manifest-backed resume flow:
 
 ```bash
 python oreilly_cli.py \
-  --cookies-file ~/.oreilly-ingest/cookies.json \
+  --cookies-file ~/.oreilly-cli/cookies.json \
   export "<playlist-url>" \
   --login-clipboard \
   --format markdown \

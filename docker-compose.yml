@@ -1,5 +1,5 @@
 services:
-  oreilly-ingest:
+  oreilly-cli:
     build: .
     ports:
       - "8000:8000"
