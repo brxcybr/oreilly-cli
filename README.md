@@ -57,24 +57,38 @@ copy(JSON.stringify(
 That copies a JSON cookie object to your system clipboard. Import it with:
 
 ```bash
-python oreilly_cli.py --cookies-file ~/.oreilly-cli/cookies.json login --clipboard
+python oreilly_cli.py -c ~/.oreilly-cli/cookies.json login -l
 ```
 
 Validate the session:
 
 ```bash
-python oreilly_cli.py --cookies-file ~/.oreilly-cli/cookies.json status
+python oreilly_cli.py -c ~/.oreilly-cli/cookies.json status
 ```
 
 If clipboard import is not available on your platform, pipe the clipboard into stdin:
 
 ```bash
-pbpaste | python oreilly_cli.py --cookies-file ~/.oreilly-cli/cookies.json login --stdin
+pbpaste | python oreilly_cli.py -c ~/.oreilly-cli/cookies.json login -s
 ```
 
 The importer accepts JSON cookie objects, browser cookie arrays, or raw `Cookie:` headers. Cookie files are written with owner-only permissions where the platform allows it.
 
 ## CLI Usage
+
+Common short flags:
+
+| Flag | Meaning |
+|------|---------|
+| `-c` | Cookie file path. If a directory is provided, `cookies.json` is appended. |
+| `-o` | Output directory. |
+| `-f` | Export format. |
+| `-l` | Login/import cookies from clipboard. |
+| `-m` | Max resolved playlist items. |
+| `-k` | Keepalive interval in seconds. |
+| `-n` | Dry run. |
+| `-r` | Resume completed playlist items from the manifest. |
+| `-x` | Skip images. |
 
 Run the interactive menu:
 
@@ -105,22 +119,21 @@ Export a book:
 
 ```bash
 python oreilly_cli.py \
-  --cookies-file ~/.oreilly-cli/cookies.json \
+  -c ~/.oreilly-cli/cookies.json \
+  -o "$HOME/Documents/OReillyExports" \
   export 9798868802188 \
-  --format markdown \
-  --output-style combined \
-  --output-dir "$HOME/Documents/OReillyExports"
+  -f markdown
 ```
 
 Export with fresh cookies in the same command:
 
 ```bash
 python oreilly_cli.py \
-  --cookies-file ~/.oreilly-cli/cookies.json \
+  -c ~/.oreilly-cli/cookies.json \
+  -o "$HOME/Documents/OReillyExports" \
   export 9798868802188 \
-  --login-clipboard \
-  --format markdown \
-  --output-dir "$HOME/Documents/OReillyExports"
+  -l \
+  -f markdown
 ```
 
 ## Playlist Resume
@@ -131,25 +144,25 @@ Dry-run a playlist:
 
 ```bash
 python oreilly_cli.py \
-  --cookies-file ~/.oreilly-cli/cookies.json \
+  -c ~/.oreilly-cli/cookies.json \
   export "https://learning.oreilly.com/playlists/00000000-0000-4000-8000-000000000000/" \
-  --format markdown \
-  --max-items 10 \
-  --dry-run
+  -f markdown \
+  -m 10 \
+  -n
 ```
 
 Run a capped playlist export:
 
 ```bash
 python oreilly_cli.py \
-  --cookies-file ~/.oreilly-cli/cookies.json \
+  -c ~/.oreilly-cli/cookies.json \
+  -o "$HOME/Documents/OReillyExports" \
   export "https://learning.oreilly.com/playlists/00000000-0000-4000-8000-000000000000/" \
-  --login-clipboard \
-  --format markdown \
+  -l \
+  -f markdown \
+  -k 300 \
+  -m 10 \
   --output-style combined \
-  --keepalive-interval 300 \
-  --max-items 10 \
-  --output-dir "$HOME/Documents/OReillyExports"
 ```
 
 Playlist exports write these files in the selected output directory:
@@ -161,14 +174,14 @@ If an export is interrupted, refresh cookies in the browser, copy them with the 
 
 ```bash
 python oreilly_cli.py \
-  --cookies-file ~/.oreilly-cli/cookies.json \
+  -c ~/.oreilly-cli/cookies.json \
+  -o "$HOME/Documents/OReillyExports" \
   export "https://learning.oreilly.com/playlists/00000000-0000-4000-8000-000000000000/" \
-  --login-clipboard \
-  --format markdown \
+  -l \
+  -f markdown \
+  -k 300 \
+  -r \
   --output-style combined \
-  --keepalive-interval 300 \
-  --resume \
-  --output-dir "$HOME/Documents/OReillyExports"
 ```
 
 Completed playlist items from the manifest are skipped.

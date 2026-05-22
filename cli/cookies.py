@@ -35,7 +35,11 @@ def parse_cookie_input(text: str) -> dict[str, str]:
 
     cookies = _filter_cookies(cookies)
     if not cookies:
-        raise CookieImportError("No usable authentication cookies were found.")
+        raise CookieImportError(
+            "No usable authentication cookies were found. Refresh the O'Reilly page, "
+            "copy cookies again, and if the browser console output only contains bot-management "
+            "cookies, copy the request Cookie header from an authenticated O'Reilly network request."
+        )
 
     return cookies
 

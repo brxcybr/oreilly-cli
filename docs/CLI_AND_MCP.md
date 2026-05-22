@@ -21,7 +21,7 @@ The CLI and MCP wrappers:
 - write cookie directories with `0700` permissions where possible;
 - use authenticated JSON endpoints for playlist resolution first, with a server-rendered playlist state fallback;
 - serialize exports within a process;
-- cap batch playlist export with `--max-items`;
+- cap batch playlist export with `-m`;
 - reject chapter selection for book-only formats such as `epub` and `chunks`.
 
 ## Installation
@@ -52,20 +52,20 @@ For a fresh checkout, use this sequence:
 
 ```bash
 python oreilly_cli.py --help
-python oreilly_cli.py --cookies-file ~/.oreilly-cli/cookies.json login
-python oreilly_cli.py --cookies-file ~/.oreilly-cli/cookies.json status
-python oreilly_cli.py --cookies-file ~/.oreilly-cli/cookies.json formats
-python oreilly_cli.py --cookies-file ~/.oreilly-cli/cookies.json search "python" --limit 3
+python oreilly_cli.py -c ~/.oreilly-cli/cookies.json login
+python oreilly_cli.py -c ~/.oreilly-cli/cookies.json status
+python oreilly_cli.py -c ~/.oreilly-cli/cookies.json formats
+python oreilly_cli.py -c ~/.oreilly-cli/cookies.json search "python" --limit 3
 ```
 
 After authentication is working, run a small dry run before exporting content:
 
 ```bash
 python oreilly_cli.py \
-  --cookies-file ~/.oreilly-cli/cookies.json \
+  -c ~/.oreilly-cli/cookies.json \
   export 9798868802188 \
-  --format markdown \
-  --dry-run
+  -f markdown \
+  -n
 ```
 
 ## Configuration
@@ -74,7 +74,7 @@ Configuration can be supplied through command flags, environment variables, or r
 
 Precedence:
 
-1. CLI flags: `--cookies-file`, `--output-dir`
+1. CLI flags: `-c`, `-o`
 2. Environment variables: `OREILLY_COOKIES_FILE`, `OREILLY_OUTPUT_DIR`
 3. Existing repo defaults from `config.py`
 
@@ -100,10 +100,18 @@ The fork intentionally does not automate browser login or extract browser cookie
 Browser-console copy command:
 
 ```javascript
-copy(document.cookie)
+copy(JSON.stringify(
+  document.cookie
+    .split(';')
+    .map(c => {
+      const [k, ...v] = c.split('=');
+      return [k.trim(), v.join('=').trim()];
+    })
+    .reduce((r, [k, v]) => ({ ...r, [k]: v }), {})
+))
 ```
 
-That command copies a raw cookie string, which the CLI and web modal both accept. If your browser or account setup omits a required cookie from `document.cookie`, copy the request `Cookie` header from an authenticated O'Reilly network request instead.
+That command copies a JSON cookie object, which the CLI and web modal both accept. If your browser or account setup omits a required cookie from `document.cookie`, copy the request `Cookie` header from an authenticated O'Reilly network request instead.
 
 Interactive import:
 
@@ -114,7 +122,7 @@ python oreilly_cli.py login
 System clipboard import:
 
 ```bash
-python oreilly_cli.py --cookies-file ~/.oreilly-cli/cookies.json login --clipboard
+python oreilly_cli.py -c ~/.oreilly-cli/cookies.json login -l
 ```
 
 `--clipboard` detects the host OS and tries the native clipboard reader: `pbpaste` on macOS, PowerShell `Get-Clipboard -Raw` on Windows and WSL, `wl-paste` on Wayland Linux, and `xclip` or `xsel` on X11 Linux.
@@ -123,22 +131,22 @@ Clipboard-to-stdin import examples:
 
 ```bash
 # macOS
-pbpaste | python oreilly_cli.py --cookies-file ~/.oreilly-cli/cookies.json login --stdin
+pbpaste | python oreilly_cli.py -c ~/.oreilly-cli/cookies.json login -s
 
 # Windows PowerShell
-Get-Clipboard -Raw | python oreilly_cli.py --cookies-file ~/.oreilly-cli/cookies.json login --stdin
+Get-Clipboard -Raw | python oreilly_cli.py -c ~/.oreilly-cli/cookies.json login -s
 
 # Linux Wayland
-wl-paste | python oreilly_cli.py --cookies-file ~/.oreilly-cli/cookies.json login --stdin
+wl-paste | python oreilly_cli.py -c ~/.oreilly-cli/cookies.json login -s
 
 # Linux X11
-xclip -selection clipboard -out | python oreilly_cli.py --cookies-file ~/.oreilly-cli/cookies.json login --stdin
+xclip -selection clipboard -out | python oreilly_cli.py -c ~/.oreilly-cli/cookies.json login -s
 ```
 
 File import:
 
 ```bash
-python oreilly_cli.py --cookies-file ~/.oreilly-cli/cookies.json login --file ~/Downloads/oreilly-cookies.json
+python oreilly_cli.py -c ~/.oreilly-cli/cookies.json login -i ~/Downloads/oreilly-cookies.json
 ```
 
 For large cookie blobs, prefer `--stdin`, `--clipboard`, or `--file`. Terminal interactive paste can hit line-buffer limits before the CLI receives the complete cookie data.
@@ -179,15 +187,15 @@ Global options:
 
 | Option | Purpose |
 |--------|---------|
-| `--cookies-file PATH` | Use a specific local cookies JSON file. |
-| `--output-dir PATH` | Use a specific export directory. |
-| `--json` | Print machine-readable JSON for supported commands. |
+| `-c`, `--cookies-file PATH` | Use a specific local cookies JSON file. If a directory is provided, `cookies.json` is appended. |
+| `-o`, `--output-dir PATH` | Use a specific export directory. |
+| `-j`, `--json` | Print machine-readable JSON for supported commands. |
 
 Global options can be supplied before the subcommand or, for convenience, after the subcommand:
 
 ```bash
-python oreilly_cli.py --output-dir ~/Documents/OReillyExports export 9798868802188 --format pdf
-python oreilly_cli.py export 9798868802188 --format pdf --output-dir ~/Documents/OReillyExports
+python oreilly_cli.py -o ~/Documents/OReillyExports export 9798868802188 -f pdf
+python oreilly_cli.py export 9798868802188 -f pdf -o ~/Documents/OReillyExports
 ```
 
 ### `menu`
@@ -210,8 +218,8 @@ Imports pasted cookie data and validates the session:
 
 ```bash
 python oreilly_cli.py login
-python oreilly_cli.py login --clipboard
-python oreilly_cli.py login --file ~/Downloads/oreilly-cookies.json
+python oreilly_cli.py login -l
+python oreilly_cli.py login -i ~/Downloads/oreilly-cookies.json
 ```
 
 ### `status`
@@ -284,7 +292,7 @@ Resolves known source forms into exportable book IDs:
 ```bash
 python oreilly_cli.py resolve 9798868802188
 python oreilly_cli.py resolve "https://learning.oreilly.com/library/view/azure-data-factory/9798868802188/"
-python oreilly_cli.py resolve "https://learning.oreilly.com/playlists/00000000-0000-4000-8000-000000000000/" --max-items 10
+python oreilly_cli.py resolve "https://learning.oreilly.com/playlists/00000000-0000-4000-8000-000000000000/" -m 10
 ```
 
 Supported source forms:
@@ -303,7 +311,7 @@ Playlist IDs can identify restricted user-owned resources. Documentation and tes
 Exports one or more authorized books serially:
 
 ```bash
-python oreilly_cli.py export 9798868802188 --format markdown
+python oreilly_cli.py export 9798868802188 -f markdown
 ```
 
 Export from a book URL:
@@ -311,7 +319,7 @@ Export from a book URL:
 ```bash
 python oreilly_cli.py export \
   "https://learning.oreilly.com/library/view/azure-data-factory/9798868802188/" \
-  --format markdown
+  -f markdown
 ```
 
 Export multiple known identifiers:
@@ -319,8 +327,8 @@ Export multiple known identifiers:
 ```bash
 python oreilly_cli.py export \
   9798868802188 9781492056355 \
-  --format epub \
-  --continue-on-error
+  -f epub \
+  -a
 ```
 
 Resolve a playlist without exporting:
@@ -328,9 +336,9 @@ Resolve a playlist without exporting:
 ```bash
 python oreilly_cli.py export \
   "https://learning.oreilly.com/playlists/00000000-0000-4000-8000-000000000000/" \
-  --format markdown \
-  --max-items 10 \
-  --dry-run
+  -f markdown \
+  -m 10 \
+  -n
 ```
 
 Export a capped number of playlist items:
@@ -338,21 +346,21 @@ Export a capped number of playlist items:
 ```bash
 python oreilly_cli.py export \
   "https://learning.oreilly.com/playlists/00000000-0000-4000-8000-000000000000/" \
-  --format markdown \
-  --max-items 5
+  -f markdown \
+  -m 5
 ```
 
 Import fresh cookies and export in a single command:
 
 ```bash
 python oreilly_cli.py \
-  --cookies-file ~/.oreilly-cli/cookies.json \
+  -c ~/.oreilly-cli/cookies.json \
   export "https://learning.oreilly.com/playlists/00000000-0000-4000-8000-000000000000/" \
-  --login-clipboard \
-  --format markdown \
+  -l \
+  -f markdown \
   --output-style combined \
-  --keepalive-interval 300 \
-  --output-dir "$HOME/iCloud/Training/Data Engineering/books"
+  -k 300 \
+  -o "$HOME/iCloud/Training/Data Engineering/books"
 ```
 
 Playlist exports write `playlist-<playlist-id>-isbns.json` and `playlist-<playlist-id>-isbns.csv` into the destination folder before downloads begin. The manifest is updated after each book start, success, or failure, so it can be used as the recovery list for a later run.
@@ -364,7 +372,7 @@ The JSON manifest is the durable resume source. It contains:
 | `kind` | Constant marker: `oreilly_playlist_manifest`. |
 | `playlist_ids` | Playlist UUIDs represented in this manifest. |
 | `total` | Number of resolved unique books. |
-| `books[].position` | Resolved playlist order after dedupe and `--max-items`. |
+| `books[].position` | Resolved playlist order after dedupe and `-m`. |
 | `books[].playlist_id` | Source playlist UUID. |
 | `books[].isbn` / `books[].book_id` | Export identifier used by the downloader. |
 | `books[].title` | Resolved title when available. |
@@ -390,7 +398,7 @@ Common generated paths:
 | Plain text | `<output>/<book-slug>/...txt` |
 | JSON/JSONL | Structured export files under the book directory |
 | Chunks | RAG-oriented chunk files under the book directory |
-| Assets | `<output>/<book-slug>/OEBPS/Images` and `<output>/<book-slug>/OEBPS/Styles` unless `--skip-images` is used |
+| Assets | `<output>/<book-slug>/OEBPS/Images` and `<output>/<book-slug>/OEBPS/Styles` unless `-x` is used |
 
 Playlist manifests are written at the top level of the selected output directory, not inside a single book directory.
 
@@ -398,43 +406,43 @@ Export options:
 
 | Option | Purpose |
 |--------|---------|
-| `--format FORMAT` | Export format. Repeat or comma-separate. Defaults to `epub`. |
-| `--chapters 0,1,2` | Export selected zero-based chapter indexes where supported. |
+| `-f`, `--format FORMAT` | Export format. Repeat or comma-separate. Defaults to `epub`. |
+| `-C`, `--chapters 0,1,2` | Export selected zero-based chapter indexes where supported. |
 | `--output-style combined\|separate` | Write combined output or separate chapter files where supported. Defaults to `combined`. |
-| `--separate` | Shortcut for `--output-style separate`. |
-| `--skip-images` | Do not download images. |
+| `-S`, `--separate` | Shortcut for `--output-style separate`. |
+| `-x`, `--skip-images` | Do not download images. |
 | `--login-stdin` | Import fresh cookies from stdin before validating and exporting. |
-| `--login-clipboard` | Import fresh cookies from the system clipboard before validating and exporting. |
+| `-l`, `--login`, `--login-clipboard` | Import fresh cookies from the system clipboard before validating and exporting. |
 | `--login-file PATH` | Import fresh cookies from a file before validating and exporting. |
-| `--keepalive-interval N` | Send best-effort authenticated keepalive checks during export and persist rotated non-Akamai auth cookies when O'Reilly returns them. |
-| `--max-items N` | Cap resolved sources, especially playlists. Defaults to 20. |
-| `--dry-run` | Resolve sources but do not export. |
-| `--resume` | For playlist exports, skip items already marked `completed` in the destination manifest. |
-| `--continue-on-error` | Continue after a failed export. |
+| `-k`, `--keepalive-interval N` | Send best-effort authenticated keepalive checks during export and persist rotated non-Akamai auth cookies when O'Reilly returns them. |
+| `-m`, `--max-items N` | Cap resolved sources, especially playlists. Defaults to 20. |
+| `-n`, `--dry-run` | Resolve sources but do not export. |
+| `-r`, `--resume` | For playlist exports, skip items already marked `completed` in the destination manifest. |
+| `-a`, `--continue-on-error` | Continue after a failed export. |
 
 Chapter selection is rejected for book-only formats (`epub`, `chunks`) because the existing downloader applies chapter filtering before format generation.
 
-Keepalive cannot revive a token that is already expired before the command starts. For long playlist exports, import fresh cookies in the same command with `--login-stdin`, `--login-clipboard`, or `--login-file`.
+Keepalive cannot revive a token that is already expired before the command starts. For long playlist exports, import fresh cookies in the same command with `--login-stdin`, `-l`, or `--login-file`.
 
 Recommended recovery workflow after a timeout or expired cookie:
 
 1. Refresh the O'Reilly browser page and copy fresh cookies.
-2. Rerun the same playlist export command with `--login-stdin` or `--login-clipboard`.
-3. Add `--resume` so the CLI reads the destination manifest and skips `completed` books.
-4. Leave `--continue-on-error` off if you want the command to stop at the next failure; add it if you want the remaining unresolved books to keep running.
+2. Rerun the same playlist export command with `--login-stdin` or `-l`.
+3. Add `-r` so the CLI reads the destination manifest and skips `completed` books.
+4. Leave `-a` off if you want the command to stop at the next failure; add it if you want the remaining unresolved books to keep running.
 
 Resume example after a timeout:
 
 ```bash
 python oreilly_cli.py \
-  --cookies-file ~/.oreilly-cli/cookies.json \
+  -c ~/.oreilly-cli/cookies.json \
   export "https://learning.oreilly.com/playlists/00000000-0000-4000-8000-000000000000/" \
-  --login-clipboard \
-  --format markdown \
+  -l \
+  -f markdown \
   --output-style combined \
-  --keepalive-interval 300 \
-  --resume \
-  --output-dir "$HOME/iCloud/Training/Data Engineering/books"
+  -k 300 \
+  -r \
+  -o "$HOME/iCloud/Training/Data Engineering/books"
 ```
 
 ## Common Workflows
@@ -443,55 +451,55 @@ python oreilly_cli.py \
 
 ```bash
 python oreilly_cli.py \
-  --cookies-file ~/.oreilly-cli/cookies.json \
+  -c ~/.oreilly-cli/cookies.json \
   export 9798868802188 \
-  --format markdown \
+  -f markdown \
   --output-style combined \
-  --output-dir "$HOME/Documents/OReillyExports"
+  -o "$HOME/Documents/OReillyExports"
 ```
 
 ### Export One Book as Separate Chapter Files
 
 ```bash
 python oreilly_cli.py \
-  --cookies-file ~/.oreilly-cli/cookies.json \
+  -c ~/.oreilly-cli/cookies.json \
   export 9798868802188 \
-  --format markdown \
+  -f markdown \
   --output-style separate \
-  --output-dir "$HOME/Documents/OReillyExports"
+  -o "$HOME/Documents/OReillyExports"
 ```
 
 ### Export All Supported Book-Level Outputs
 
 ```bash
 python oreilly_cli.py \
-  --cookies-file ~/.oreilly-cli/cookies.json \
+  -c ~/.oreilly-cli/cookies.json \
   export 9798868802188 \
-  --format all \
-  --output-dir "$HOME/Documents/OReillyExports"
+  -f all \
+  -o "$HOME/Documents/OReillyExports"
 ```
 
 ### Export RAG Chunks
 
 ```bash
 python oreilly_cli.py \
-  --cookies-file ~/.oreilly-cli/cookies.json \
+  -c ~/.oreilly-cli/cookies.json \
   export 9798868802188 \
-  --format chunks \
+  -f chunks \
   --chunk-size 4000 \
   --chunk-overlap 200 \
-  --output-dir "$HOME/Documents/OReillyExports"
+  -o "$HOME/Documents/OReillyExports"
 ```
 
 ### Export Without Downloading Images
 
 ```bash
 python oreilly_cli.py \
-  --cookies-file ~/.oreilly-cli/cookies.json \
+  -c ~/.oreilly-cli/cookies.json \
   export 9798868802188 \
-  --format markdown \
-  --skip-images \
-  --output-dir "$HOME/Documents/OReillyExports"
+  -f markdown \
+  -x \
+  -o "$HOME/Documents/OReillyExports"
 ```
 
 ## MCP Server Reference
@@ -602,8 +610,8 @@ Live integration tests are intentionally not included with real credentials. To 
 python oreilly_cli.py login
 python oreilly_cli.py status
 python oreilly_cli.py search "python" --limit 3
-python oreilly_cli.py export <BOOK_ID> --format markdown --dry-run
-python oreilly_cli.py export <BOOK_ID> --format markdown
+python oreilly_cli.py export <BOOK_ID> -f markdown -n
+python oreilly_cli.py export <BOOK_ID> -f markdown
 ```
 
 ## Troubleshooting
@@ -635,33 +643,33 @@ python oreilly_cli.py login --clipboard
 Playlist resolution depends on authenticated JSON endpoint shapes. Run:
 
 ```bash
-python oreilly_cli.py resolve "<playlist-url>" --max-items 5
+python oreilly_cli.py resolve "<playlist-url>" -m 5
 ```
 
 If it returns no books, use direct book URLs or IDs from the playlist as a fallback.
 
 ### Chapter selection fails
 
-Chapter selection is only valid for formats that support partial output. Do not combine `--chapters` with `epub` or `chunks`.
+Chapter selection is only valid for formats that support partial output. Do not combine `-C` with `epub` or `chunks`.
 
 ### Export fails midway
 
 For non-playlist sources, use:
 
 ```bash
-python oreilly_cli.py export <sources...> --continue-on-error
+python oreilly_cli.py export <sources...> -a
 ```
 
 For playlist sources, prefer the manifest-backed resume flow:
 
 ```bash
 python oreilly_cli.py \
-  --cookies-file ~/.oreilly-cli/cookies.json \
+  -c ~/.oreilly-cli/cookies.json \
   export "<playlist-url>" \
-  --login-clipboard \
-  --format markdown \
-  --resume \
-  --output-dir "$HOME/Documents/OReillyExports"
+  -l \
+  -f markdown \
+  -r \
+  -o "$HOME/Documents/OReillyExports"
 ```
 
 Failures are reported per source. The CLI does not print cookie values in errors.

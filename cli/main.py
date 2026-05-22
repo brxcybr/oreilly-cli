@@ -25,7 +25,15 @@ AUTH_REFRESH_MESSAGE = (
     "Authentication is missing or expired. Refresh cookies manually through your "
     "browser and paste fresh cookies when prompted."
 )
-COOKIE_COPY_SNIPPET = "copy(document.cookie)"
+COOKIE_COPY_SNIPPET = """copy(JSON.stringify(
+  document.cookie
+    .split(';')
+    .map(c => {
+      const [k, ...v] = c.split('=');
+      return [k.trim(), v.join('=').trim()];
+    })
+    .reduce((r, [k, v]) => ({ ...r, [k]: v }), {})
+))"""
 _SECRET_PATTERNS = (
     re.compile(r"orm-jwt=[^;\s]+", re.IGNORECASE),
     re.compile(r"bearer\s+[A-Za-z0-9._-]+", re.IGNORECASE),
@@ -36,6 +44,7 @@ _SECRET_PATTERNS = (
 
 def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
+    argv = _repair_split_cookie_path(sys.argv[1:] if argv is None else argv)
     args = parser.parse_args(argv)
     _apply_runtime_config(args)
 
@@ -54,9 +63,9 @@ def _build_parser() -> argparse.ArgumentParser:
         description="Search and export authorized O'Reilly books.",
         epilog="Run `python oreilly_cli.py export --help` for export flags including --resume.",
     )
-    parser.add_argument("--cookies-file", help="Path to local cookies JSON file.")
-    parser.add_argument("--output-dir", help="Default export directory.")
-    parser.add_argument("--json", action="store_true", help="Print machine-readable JSON output.")
+    parser.add_argument("-c", "--cookies-file", help="Path to local cookies JSON file.")
+    parser.add_argument("-o", "--output-dir", help="Default export directory.")
+    parser.add_argument("-j", "--json", action="store_true", help="Print machine-readable JSON output.")
 
     subparsers = parser.add_subparsers(dest="command")
 
@@ -69,15 +78,15 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Paste and store browser cookies.",
         description=(
             "Import O'Reilly cookies from stdin, clipboard, file, or an interactive prompt. "
-            "Use the browser console command `copy(document.cookie)` and prefer --clipboard "
+            "Use the documented browser console JSON copy command and prefer --clipboard "
             "or --stdin for long cookie strings."
         ),
     )
     _add_runtime_options(login)
     login_source = login.add_mutually_exclusive_group()
-    login_source.add_argument("--stdin", action="store_true", help="Read cookie data from stdin.")
-    login_source.add_argument("--clipboard", action="store_true", help="Read cookie data from the system clipboard.")
-    login_source.add_argument("--file", help="Read cookie data from a file.")
+    login_source.add_argument("-s", "--stdin", action="store_true", help="Read cookie data from stdin.")
+    login_source.add_argument("-l", "--clipboard", action="store_true", help="Read cookie data from the system clipboard.")
+    login_source.add_argument("-i", "--file", help="Read cookie data from a file.")
     login.set_defaults(func=cmd_login)
 
     formats = subparsers.add_parser("formats", help="List supported export formats.")
@@ -87,7 +96,7 @@ def _build_parser() -> argparse.ArgumentParser:
     search = subparsers.add_parser("search", help="Search O'Reilly books.")
     _add_runtime_options(search)
     search.add_argument("query")
-    search.add_argument("--limit", type=int, default=10)
+    search.add_argument("-n", "--limit", type=int, default=10)
     search.set_defaults(func=cmd_search)
 
     book = subparsers.add_parser("book", help="Show book metadata and chapters.")
@@ -110,15 +119,15 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Book ID, ISBN, book URL, or playlist URL. Multiple sources are exported serially.",
     )
     export.add_argument("--format", "-f", action="append", help="Export format. Repeat or comma-separate.")
-    export.add_argument("--chapters", help="Comma-separated zero-based chapter indexes.")
+    export.add_argument("-C", "--chapters", help="Comma-separated zero-based chapter indexes.")
     export.add_argument(
         "--output-style",
         choices=("combined", "separate"),
         default="combined",
         help="Write combined output or separate chapter files where supported.",
     )
-    export.add_argument("--separate", action="store_true", help="Shortcut for --output-style separate.")
-    export.add_argument("--skip-images", action="store_true")
+    export.add_argument("-S", "--separate", action="store_true", help="Shortcut for --output-style separate.")
+    export.add_argument("-x", "--skip-images", action="store_true")
     cookie_source = export.add_mutually_exclusive_group()
     cookie_source.add_argument(
         "--login-stdin",
@@ -126,8 +135,11 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Import fresh cookies from stdin before validating and exporting.",
     )
     cookie_source.add_argument(
+        "-l",
+        "--login",
         "--login-clipboard",
         action="store_true",
+        dest="login_clipboard",
         help="Import fresh cookies from the system clipboard before validating and exporting.",
     )
     cookie_source.add_argument(
@@ -137,21 +149,22 @@ def _build_parser() -> argparse.ArgumentParser:
     export.add_argument("--chunk-size", type=int, default=4000, help="Chunk size for --format chunks.")
     export.add_argument("--chunk-overlap", type=int, default=200, help="Chunk overlap for --format chunks.")
     export.add_argument(
+        "-k",
         "--keepalive-interval",
         type=int,
         default=0,
         help="Best-effort session keepalive interval in seconds during export.",
     )
-    export.add_argument("--max-items", type=int, default=20, help="Maximum resolved books to export.")
-    export.add_argument("--dry-run", action="store_true", help="Resolve sources but do not export.")
-    export.add_argument("--resume", action="store_true", help="Skip playlist items already marked completed in the output manifest.")
-    export.add_argument("--continue-on-error", action="store_true", help="Continue exporting remaining books after a failure.")
+    export.add_argument("-m", "--max-items", type=int, default=20, help="Maximum resolved books to export.")
+    export.add_argument("-n", "--dry-run", action="store_true", help="Resolve sources but do not export.")
+    export.add_argument("-r", "--resume", action="store_true", help="Skip playlist items already marked completed in the output manifest.")
+    export.add_argument("-a", "--continue-on-error", action="store_true", help="Continue exporting remaining books after a failure.")
     export.set_defaults(func=cmd_export)
 
     resolve = subparsers.add_parser("resolve", help="Resolve book IDs, ISBNs, book URLs, or playlist URLs.")
     _add_runtime_options(resolve)
     resolve.add_argument("sources", nargs="+")
-    resolve.add_argument("--max-items", type=int, default=20)
+    resolve.add_argument("-m", "--max-items", type=int, default=20)
     resolve.set_defaults(func=cmd_resolve)
 
     menu = subparsers.add_parser("menu", help="Open the interactive menu.")
@@ -163,9 +176,9 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def _add_runtime_options(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--cookies-file", default=argparse.SUPPRESS, help="Path to local cookies JSON file.")
-    parser.add_argument("--output-dir", default=argparse.SUPPRESS, help="Default export directory.")
-    parser.add_argument("--json", action="store_true", default=argparse.SUPPRESS, help="Print machine-readable JSON output.")
+    parser.add_argument("-c", "--cookies-file", default=argparse.SUPPRESS, help="Path to local cookies JSON file.")
+    parser.add_argument("-o", "--output-dir", default=argparse.SUPPRESS, help="Default export directory.")
+    parser.add_argument("-j", "--json", action="store_true", default=argparse.SUPPRESS, help="Print machine-readable JSON output.")
 
 
 def cmd_status(args) -> int:
@@ -586,7 +599,7 @@ def _format_clipboard_command(command: list[str]) -> str:
 def _prompt_cookie_text() -> str:
     print("\nCookie refresh")
     print("1. Open https://learning.oreilly.com in your browser and confirm you are signed in.")
-    print("2. Open browser DevTools Console and run this command to copy the cookie string:")
+    print("2. Open browser DevTools Console and run this command to copy a JSON cookie object:")
     print(COOKIE_COPY_SNIPPET)
     print("3. For large cookie blobs, prefer clipboard import instead of manual paste.")
     print("4. You can also copy the request Cookie header for an O'Reilly page/API request.")
@@ -715,15 +728,62 @@ def _normalize_search_results(results: list[dict[str, Any]]) -> list[dict[str, A
 
 def _apply_runtime_config(args) -> None:
     if getattr(args, "cookies_file", None):
-        config.COOKIES_FILE = Path(args.cookies_file).expanduser()
+        config.COOKIES_FILE = _normalize_cookie_file_path(args.cookies_file)
     if getattr(args, "output_dir", None):
         config.OUTPUT_DIR = Path(args.output_dir).expanduser()
 
 
 def _new_kernel():
-    from core import create_default_kernel
+    try:
+        from core import create_default_kernel
+    except ModuleNotFoundError as exc:
+        if exc.name == "curl_cffi":
+            raise RuntimeError(_missing_dependency_message("curl_cffi")) from None
+        raise
 
     return create_default_kernel()
+
+
+def _normalize_cookie_file_path(raw_path: str | Path) -> Path:
+    raw_text = str(raw_path)
+    path = Path(raw_text).expanduser()
+    if raw_text.endswith("/") or path.is_dir() or path.name == ".oreilly-cli":
+        return path / "cookies.json"
+    return path
+
+
+def _repair_split_cookie_path(argv: list[str]) -> list[str]:
+    repaired: list[str] = []
+    index = 0
+    while index < len(argv):
+        item = argv[index]
+        repaired.append(item)
+        if item in {"--cookies-file", "-c"} and index + 2 < len(argv):
+            base = argv[index + 1]
+            tail = argv[index + 2]
+            if _looks_like_split_cookie_tail(tail):
+                repaired.append(str(Path(base).expanduser() / tail.lstrip("/")))
+                index += 3
+                continue
+        index += 1
+    return repaired
+
+
+def _looks_like_split_cookie_tail(value: str) -> bool:
+    normalized = value.strip()
+    return normalized in {"/cookies.json", "cookies.json"} or normalized.endswith("/cookies.json")
+
+
+def _missing_dependency_message(package: str) -> str:
+    return (
+        f"Missing required dependency `{package}` for O'Reilly HTTP access. "
+        "Activate the project environment and install requirements:\n"
+        "  source .venv/bin/activate\n"
+        "  python -m pip install -r requirements.txt\n"
+        "If activation did not take, run `.venv/bin/python -m pip install -r requirements.txt` directly.\n"
+        "Then rerun the command with the same `python`. "
+        f"Current Python: {sys.executable}"
+    )
 
 
 def _validate_formats(raw_formats: list[str]) -> list[str]:

@@ -69,6 +69,69 @@ class CliMainTests(unittest.TestCase):
         self.assertEqual(args.output_dir, "~/exports")
         self.assertEqual(args.sources, ["9781492056355"])
 
+    def test_short_runtime_options_are_accepted(self):
+        parser = cli_main._build_parser()
+        args = parser.parse_args(
+            [
+                "-c",
+                "~/.oreilly-cli/cookies.json",
+                "export",
+                "9781492056355",
+                "-f",
+                "md",
+                "-o",
+                "~/exports",
+                "-j",
+            ]
+        )
+        self.assertEqual(args.cookies_file, "~/.oreilly-cli/cookies.json")
+        self.assertEqual(args.output_dir, "~/exports")
+        self.assertTrue(args.json)
+        self.assertEqual(args.format, ["md"])
+
+    def test_export_short_options_are_accepted(self):
+        parser = cli_main._build_parser()
+        args = parser.parse_args(
+            [
+                "export",
+                "9781492056355",
+                "-l",
+                "-r",
+                "-n",
+                "-m",
+                "7",
+                "-k",
+                "300",
+                "-x",
+                "-C",
+                "0,1",
+            ]
+        )
+        self.assertTrue(args.login_clipboard)
+        self.assertTrue(args.resume)
+        self.assertTrue(args.dry_run)
+        self.assertEqual(args.max_items, 7)
+        self.assertEqual(args.keepalive_interval, 300)
+        self.assertTrue(args.skip_images)
+        self.assertEqual(args.chapters, "0,1")
+
+    def test_login_short_options_are_accepted(self):
+        parser = cli_main._build_parser()
+        args = parser.parse_args(["login", "-l"])
+        self.assertTrue(args.clipboard)
+
+    def test_split_cookie_path_is_repaired(self):
+        self.assertEqual(
+            cli_main._repair_split_cookie_path(["--cookies-file", "~/.oreilly-cli", "/cookies.json", "login"]),
+            ["--cookies-file", str(Path("~/.oreilly-cli").expanduser() / "cookies.json"), "login"],
+        )
+
+    def test_cookie_directory_defaults_to_cookies_json(self):
+        self.assertEqual(
+            cli_main._normalize_cookie_file_path("~/.oreilly-cli"),
+            Path("~/.oreilly-cli").expanduser() / "cookies.json",
+        )
+
     def test_export_accepts_inline_cookie_import_options(self):
         parser = cli_main._build_parser()
         args = parser.parse_args(
