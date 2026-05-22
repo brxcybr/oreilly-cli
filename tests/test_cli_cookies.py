@@ -13,12 +13,12 @@ class CookieImportTests(unittest.TestCase):
         self.assertEqual(cookies, {"orm-jwt": "dummy", "other": "value"})
 
     def test_parse_json_object(self):
-        cookies = parse_cookie_input('{"orm-jwt": "secret-token", "_abck": "noise"}')
-        self.assertEqual(cookies, {"orm-jwt": "secret-token"})
+        cookies = parse_cookie_input('{"orm-jwt": "dummy", "_abck": "noise"}')
+        self.assertEqual(cookies, {"orm-jwt": "dummy"})
 
     def test_parse_json_string_containing_json_object(self):
-        cookies = parse_cookie_input(json.dumps('{"orm-jwt": "secret-token", "_abck": "noise"}'))
-        self.assertEqual(cookies, {"orm-jwt": "secret-token"})
+        cookies = parse_cookie_input(json.dumps('{"orm-jwt": "dummy", "_abck": "noise"}'))
+        self.assertEqual(cookies, {"orm-jwt": "dummy"})
 
     def test_parse_json_string_containing_cookie_header(self):
         cookies = parse_cookie_input(json.dumps("orm-jwt=dummy; bm_sz=noise"))
@@ -28,12 +28,12 @@ class CookieImportTests(unittest.TestCase):
         cookies = parse_cookie_input(
             json.dumps(
                 [
-                    {"name": "orm-jwt", "value": "secret-token"},
+                    {"name": "orm-jwt", "value": "dummy"},
                     {"name": "ak_bmsc", "value": "noise"},
                 ]
             )
         )
-        self.assertEqual(cookies, {"orm-jwt": "secret-token"})
+        self.assertEqual(cookies, {"orm-jwt": "dummy"})
 
     def test_invalid_cookie_input_raises_without_secret_echo(self):
         with self.assertRaises(CookieImportError) as ctx:

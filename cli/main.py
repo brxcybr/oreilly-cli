@@ -14,7 +14,7 @@ from typing import Any
 
 import config
 from cli.cookies import CookieImportError, import_cookie_text, cookie_permission_warnings
-from cli.resolver import resolve_sources
+from cli.resolver import is_playlist_source, resolve_sources
 from plugins.chunking import ChunkConfig
 from plugins.downloader import DownloaderPlugin
 
@@ -23,15 +23,7 @@ AUTH_REFRESH_MESSAGE = (
     "Authentication is missing or expired. Refresh cookies manually through your "
     "browser and paste fresh cookies when prompted."
 )
-COOKIE_COPY_SNIPPET = """copy(JSON.stringify(
-  document.cookie
-    .split(';')
-    .map(c => {
-      const [k, ...v] = c.split('=');
-      return [k.trim(), v.join('=').trim()];
-    })
-    .reduce((r, [k, v]) => ({ ...r, [k]: v }), {})
-))"""
+COOKIE_COPY_SNIPPET = "copy(document.cookie)"
 _SECRET_PATTERNS = (
     re.compile(r"orm-jwt=[^;\s]+", re.IGNORECASE),
     re.compile(r"bearer\s+[A-Za-z0-9._-]+", re.IGNORECASE),
@@ -56,7 +48,10 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Search and export authorized O'Reilly books.")
+    parser = argparse.ArgumentParser(
+        description="Search and export authorized O'Reilly books.",
+        epilog="Run `python oreilly_cli.py export --help` for export flags including --resume.",
+    )
     parser.add_argument("--cookies-file", help="Path to local cookies JSON file.")
     parser.add_argument("--output-dir", help="Default export directory.")
     parser.add_argument("--json", action="store_true", help="Print machine-readable JSON output.")
@@ -67,7 +62,15 @@ def _build_parser() -> argparse.ArgumentParser:
     _add_runtime_options(status)
     status.set_defaults(func=cmd_status)
 
-    login = subparsers.add_parser("login", help="Paste and store browser cookies.")
+    login = subparsers.add_parser(
+        "login",
+        help="Paste and store browser cookies.",
+        description=(
+            "Import O'Reilly cookies from stdin, clipboard, file, or an interactive prompt. "
+            "Use the browser console command `copy(document.cookie)` and prefer --clipboard "
+            "or --stdin for long cookie strings."
+        ),
+    )
     _add_runtime_options(login)
     login_source = login.add_mutually_exclusive_group()
     login_source.add_argument("--stdin", action="store_true", help="Read cookie data from stdin.")
@@ -90,7 +93,14 @@ def _build_parser() -> argparse.ArgumentParser:
     book.add_argument("book_id")
     book.set_defaults(func=cmd_book)
 
-    export = subparsers.add_parser("export", help="Export one or more authorized books.")
+    export = subparsers.add_parser(
+        "export",
+        help="Export one or more authorized books.",
+        description=(
+            "Export book IDs, ISBNs, book URLs, or playlist URLs. Playlist exports write "
+            "a destination manifest that --resume can use after timeouts."
+        ),
+    )
     _add_runtime_options(export)
     export.add_argument(
         "sources",
@@ -335,7 +345,7 @@ def cmd_menu(args) -> int:
         print("\nMenu")
         print("1. Search books")
         print("2. View book metadata and chapters")
-        print("3. Export book")
+        print("3. Export book or playlist")
         print("4. List formats")
         print("5. Refresh cookies")
         print("6. Status")
@@ -362,9 +372,9 @@ def cmd_menu(args) -> int:
             elif choice == "3":
                 if not ensure_authenticated(prompt=True):
                     continue
-                book_id = _choose_book_id(last_results)
-                if book_id:
-                    _menu_export(book_id)
+                source = _choose_export_source(last_results)
+                if source:
+                    _menu_export(source)
             elif choice == "4":
                 _print_formats(DownloaderPlugin.get_formats_info())
             elif choice == "5":
@@ -443,7 +453,7 @@ def get_book_metadata(book_id: str) -> dict[str, Any]:
 
 def _interactive_cookie_refresh() -> bool:
     try:
-        cookie_text = _prompt_cookie_text()
+        cookie_text = _prompt_cookie_source()
         import_cookie_text(cookie_text, config.COOKIES_FILE)
         status = get_auth_status()
     except (CookieImportError, RuntimeError, ValueError) as exc:
@@ -465,7 +475,9 @@ def _read_cookie_text(args) -> str:
         return _read_clipboard()
     if getattr(args, "file", None):
         return Path(args.file).expanduser().read_text(encoding="utf-8")
-    return _prompt_cookie_text()
+    if not sys.stdin.isatty():
+        return sys.stdin.read()
+    return _prompt_cookie_source()
 
 
 def _import_export_cookies(args) -> None:
@@ -497,13 +509,12 @@ def _read_clipboard() -> str:
 def _prompt_cookie_text() -> str:
     print("\nCookie refresh")
     print("1. Open https://learning.oreilly.com in your browser and confirm you are signed in.")
-    print("2. Open browser DevTools Console and run this command to copy cookies as JSON:")
+    print("2. Open browser DevTools Console and run this command to copy the cookie string:")
     print(COOKIE_COPY_SNIPPET)
-    print("3. For large cookie blobs, prefer: pbpaste | python oreilly_cli.py login --stdin")
-    print("4. Or use: python oreilly_cli.py login --clipboard")
-    print("5. You can also copy the request Cookie header for an O'Reilly page/API request.")
-    print("6. Paste the Cookie header, cookie JSON object, or exported cookie array below.")
-    print("7. Press Enter on a blank line to finish. Cookie values will not be printed back.")
+    print("3. For large cookie blobs, prefer clipboard import instead of manual paste.")
+    print("4. You can also copy the request Cookie header for an O'Reilly page/API request.")
+    print("5. Paste the Cookie header, cookie JSON object, or exported cookie array below.")
+    print("6. Press Enter on a blank line to finish. Cookie values will not be printed back.")
     lines: list[str] = []
     while True:
         try:
@@ -516,37 +527,82 @@ def _prompt_cookie_text() -> str:
     return "\n".join(lines)
 
 
-def _menu_export(book_id: str) -> None:
+def _prompt_cookie_source() -> str:
+    while True:
+        print("\nCookie import")
+        print("Open https://learning.oreilly.com, confirm you are signed in, then run this in the browser console:")
+        print(COOKIE_COPY_SNIPPET)
+        print("\nChoose how to import the copied cookie data:")
+        print("1. Read from macOS clipboard (recommended)")
+        print("2. Read from file")
+        print("3. Paste manually")
+        print("0. Cancel")
+        choice = input("> ").strip() or "1"
+
+        if choice == "1":
+            return _read_clipboard()
+        if choice == "2":
+            path = input("Cookie file path: ").strip()
+            if path:
+                return Path(path).expanduser().read_text(encoding="utf-8")
+            print("Path is required.")
+        elif choice == "3":
+            return _prompt_cookie_text()
+        elif choice == "0":
+            raise CookieImportError("Cookie import cancelled.")
+        else:
+            print("Choose a listed option.")
+
+
+def _choose_export_source(last_results: list[dict[str, Any]]) -> str:
+    if last_results:
+        print("Recent search results:")
+        for index, item in enumerate(last_results, start=1):
+            print(f"{index}. {item.get('title')} ({item.get('id')})")
+        raw = input("Book ID, result number, book URL, or playlist URL: ").strip()
+        if raw.isdigit():
+            result_index = int(raw) - 1
+            if 0 <= result_index < len(last_results):
+                return str(last_results[result_index].get("id") or "")
+        return raw
+    return input("Book ID, ISBN, book URL, or playlist URL: ").strip()
+
+
+def _menu_export(source: str) -> None:
     _print_formats(DownloaderPlugin.get_formats_info())
     raw_formats = input("Formats [epub]: ").strip() or "epub"
-    formats = _validate_formats([raw_formats])
     raw_chapters = input("Chapter indexes, comma-separated, blank for all: ").strip()
-    chapters = _parse_chapters(raw_chapters or None)
-    _validate_chapter_selection(formats, chapters)
+    output_style = input("Output style combined/separate [combined]: ").strip().lower() or "combined"
+    if output_style not in {"combined", "separate"}:
+        output_style = "combined"
     skip_images = input("Skip images? [y/N]: ").strip().lower() in {"y", "yes"}
+    resume = False
+    if is_playlist_source(source):
+        resume = input("Resume completed playlist items from manifest? [y/N]: ").strip().lower() in {"y", "yes"}
+    max_items = _input_int("Max resolved items", default=20, minimum=1, maximum=1000)
+    keepalive_interval = _input_int("Keepalive interval seconds, 0 to disable", default=0, minimum=0, maximum=86400)
+    continue_on_error = input("Continue after item failures? [y/N]: ").strip().lower() in {"y", "yes"}
 
-    kernel = _new_kernel()
-    output_plugin = kernel["output"]
-    success, message, output_dir = output_plugin.validate_dir(config.OUTPUT_DIR)
-    if not success or output_dir is None:
-        raise ValueError(message)
-    result = kernel["downloader"].download(
-        book_id=book_id,
-        output_dir=output_dir,
-        formats=formats,
-        selected_chapters=chapters,
+    args = argparse.Namespace(
+        sources=[source],
+        format=[raw_formats],
+        chapters=raw_chapters or None,
+        output_style=output_style,
+        separate=False,
         skip_images=skip_images,
+        login_stdin=False,
+        login_clipboard=False,
+        login_file=None,
+        chunk_size=4000,
+        chunk_overlap=200,
+        keepalive_interval=keepalive_interval,
+        max_items=max_items,
+        dry_run=False,
+        resume=resume,
+        continue_on_error=continue_on_error,
+        json=False,
     )
-    _print_export_result(
-        {
-            "status": "completed",
-            "book_id": result.book_id,
-            "title": result.title,
-            "output_dir": str(result.output_dir),
-            "generated_files": _paths_to_strings(result.files),
-            "chapters_count": result.chapters_count,
-        }
-    )
+    cmd_export(args)
 
 
 def _choose_book_id(last_results: list[dict[str, Any]]) -> str:

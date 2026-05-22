@@ -59,19 +59,16 @@ async function saveCookies() {
     const errorEl = document.getElementById('cookie-error');
 
     if (!input) {
-        errorEl.textContent = 'Please paste your cookie JSON';
+        errorEl.textContent = 'Please paste your cookie string or cookie JSON';
         errorEl.classList.remove('hidden');
         return;
     }
 
     let cookies;
     try {
-        cookies = JSON.parse(input);
-        if (typeof cookies !== 'object' || Array.isArray(cookies)) {
-            throw new Error('Must be a JSON object');
-        }
+        cookies = parseCookieInput(input);
     } catch (e) {
-        errorEl.textContent = 'Invalid JSON format: ' + e.message;
+        errorEl.textContent = 'Invalid cookie data: ' + e.message;
         errorEl.classList.remove('hidden');
         return;
     }
@@ -96,6 +93,41 @@ async function saveCookies() {
         errorEl.textContent = 'Failed to save cookies';
         errorEl.classList.remove('hidden');
     }
+}
+
+function parseCookieInput(input) {
+    const trimmed = input.trim();
+    if (!trimmed) {
+        throw new Error('empty input');
+    }
+
+    if (trimmed.startsWith('{')) {
+        const parsed = JSON.parse(trimmed);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            throw new Error('JSON input must be an object');
+        }
+        return parsed;
+    }
+
+    const cookieHeader = trimmed.toLowerCase().startsWith('cookie:')
+        ? trimmed.slice(trimmed.indexOf(':') + 1).trim()
+        : trimmed;
+    const cookies = {};
+
+    for (const part of cookieHeader.split(';')) {
+        const segment = part.trim();
+        if (!segment || !segment.includes('=')) continue;
+        const [name, ...valueParts] = segment.split('=');
+        const key = name.trim();
+        const value = valueParts.join('=').trim();
+        if (key && value) cookies[key] = value;
+    }
+
+    if (!Object.keys(cookies).length) {
+        throw new Error('expected Cookie header, document.cookie output, or JSON object');
+    }
+
+    return cookies;
 }
 
 async function loadDefaultOutputDir() {

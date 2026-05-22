@@ -68,6 +68,8 @@ python oreilly_cli.py menu
 
 On startup, menu mode checks the current session. If cookies are missing or expired, it shows browser DevTools instructions, waits for pasted cookie data, stores it locally, validates the session, and then opens menu options for search, metadata lookup, export, formats, status, and cookie refresh.
 
+Menu cookie refresh defaults to reading from the macOS clipboard so long cookie strings do not need to be pasted into a terminal prompt. The export menu accepts book IDs, ISBNs, book URLs, and playlist URLs; when the source is a playlist, it offers manifest-backed resume.
+
 You can also use direct commands:
 
 ```bash
@@ -124,15 +126,7 @@ The manifest is stored in the destination folder and includes each resolved ISBN
 Cookie input can be pasted interactively or piped from stdin:
 
 ```javascript
-copy(JSON.stringify(
-  document.cookie
-    .split(';')
-    .map(c => {
-      const [k, ...v] = c.split('=');
-      return [k.trim(), v.join('=').trim()];
-    })
-    .reduce((r, [k, v]) => ({ ...r, [k]: v }), {})
-))
+copy(document.cookie)
 ```
 
 ```bash

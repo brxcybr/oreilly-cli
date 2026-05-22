@@ -98,16 +98,10 @@ The fork intentionally does not automate browser login or extract browser cookie
 Browser-console copy command:
 
 ```javascript
-copy(JSON.stringify(
-  document.cookie
-    .split(';')
-    .map(c => {
-      const [k, ...v] = c.split('=');
-      return [k.trim(), v.join('=').trim()];
-    })
-    .reduce((r, [k, v]) => ({ ...r, [k]: v }), {})
-))
+copy(document.cookie)
 ```
+
+That command copies a raw cookie string, which the CLI and web modal both accept. If your browser or account setup omits a required cookie from `document.cookie`, copy the request `Cookie` header from an authenticated O'Reilly network request instead.
 
 Interactive import:
 
@@ -191,6 +185,10 @@ python oreilly_cli.py menu
 ```
 
 Menu mode checks authentication on startup. If the session is missing or expired, it prompts for fresh cookie data, validates the session, then opens options for search, metadata lookup, export, format listing, status, and cookie refresh.
+
+For cookie refresh, menu mode defaults to reading the macOS clipboard. This avoids the common terminal limitation where a very long cookie string cannot be pasted cleanly into an interactive input line. Manual paste and file import remain available from the menu.
+
+For export, menu mode accepts a book ID, ISBN, book URL, or playlist URL. If the source is a playlist, it asks whether to resume completed items from the destination manifest.
 
 ### `login`
 

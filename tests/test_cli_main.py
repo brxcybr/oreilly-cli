@@ -91,6 +91,14 @@ class CliMainTests(unittest.TestCase):
         args = parser.parse_args(["export", "9781492056355", "--resume"])
         self.assertTrue(args.resume)
 
+    def test_export_help_mentions_resume(self):
+        parser = cli_main._build_parser()
+        with self.assertRaises(SystemExit):
+            with patch.object(cli_main.sys, "argv", ["oreilly_cli.py", "export", "--help"]):
+                with patch("sys.stdout") as stdout:
+                    parser.parse_args(["export", "--help"])
+        self.assertIn("--resume", "".join(call.args[0] for call in stdout.write.call_args_list))
+
     def test_playlist_manifest_writes_json_and_csv(self):
         resolved = [
             ResolvedSource(
@@ -146,6 +154,18 @@ class CliMainTests(unittest.TestCase):
             args = SimpleNamespace(stdin=False, clipboard=False, file="~/cookies.txt")
             self.assertEqual(cli_main._read_cookie_text(args), "orm-jwt=dummy")
             read_text.assert_called_once_with(encoding="utf-8")
+
+    def test_login_without_flag_reads_piped_stdin(self):
+        args = SimpleNamespace(stdin=False, clipboard=False, file=None)
+        with patch.object(cli_main.sys.stdin, "isatty", return_value=False):
+            with patch.object(cli_main.sys.stdin, "read", return_value="orm-jwt=dummy"):
+                self.assertEqual(cli_main._read_cookie_text(args), "orm-jwt=dummy")
+
+    def test_interactive_cookie_source_defaults_to_clipboard(self):
+        with patch("builtins.input", return_value=""):
+            with patch("builtins.print"):
+                with patch.object(cli_main, "_read_clipboard", return_value="orm-jwt=dummy"):
+                    self.assertEqual(cli_main._prompt_cookie_source(), "orm-jwt=dummy")
 
     def test_import_export_cookies_from_stdin(self):
         args = SimpleNamespace(login_stdin=True, login_clipboard=False, login_file=None)
