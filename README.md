@@ -234,15 +234,6 @@ Common outputs:
 | EPUB/PDF/text/JSON/chunks | Files under the book output directory |
 | Playlist manifest | `playlist-<playlist-id>-isbns.json` and `.csv` |
 
-Before publishing changes:
-
-- Do not commit `cookies.json`, cookie exports, `.env` files, private keys, or generated book output.
-- Do not commit raw browser captures or restricted playlist pages under `ref/`.
-- Do not commit real playlist UUIDs.
-- Run `git status --short` before committing.
-
-The repository ignores local credential files, generated output, playlist manifests, raw reference captures, and common macOS filesystem artifacts.
-
 ## Testing
 
 ```bash
