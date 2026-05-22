@@ -292,6 +292,7 @@ def oreilly_export_book(
             "output_dir": str(result.output_dir),
             "generated_files": _file_paths(result.files),
             "chapters_count": result.chapters_count,
+            "link_repair": getattr(result, "link_repair", {}),
             "warnings": warnings,
         }
 

@@ -93,6 +93,23 @@ def _build_parser() -> argparse.ArgumentParser:
     _add_runtime_options(formats)
     formats.set_defaults(func=cmd_formats)
 
+    repair_links = subparsers.add_parser(
+        "repair-links",
+        help="Audit or repair local links in generated Markdown and chunk JSONL output.",
+    )
+    _add_runtime_options(repair_links)
+    repair_links.add_argument(
+        "path",
+        nargs="?",
+        help="Output directory or one .md/.jsonl file. Defaults to the configured output directory.",
+    )
+    repair_links.add_argument(
+        "--write",
+        action="store_true",
+        help="Rewrite files in place. Without this flag the command only reports what would change.",
+    )
+    repair_links.set_defaults(func=cmd_repair_links)
+
     search = subparsers.add_parser("search", help="Search O'Reilly books.")
     _add_runtime_options(search)
     search.add_argument("query")
@@ -206,6 +223,20 @@ def cmd_formats(args) -> int:
     info = DownloaderPlugin.get_formats_info()
     _print_result(args, info, _print_formats)
     return 0
+
+
+def cmd_repair_links(args) -> int:
+    from plugins.link_repair import LinkRepairPlugin
+
+    target = Path(args.path).expanduser() if args.path else config.OUTPUT_DIR
+    report = LinkRepairPlugin().repair_directory(target, write=args.write)
+    payload = {
+        "path": str(target),
+        "write": bool(args.write),
+        **report.as_dict(),
+    }
+    _print_result(args, payload, _print_link_repair_result)
+    return 1 if report.unresolved else 0
 
 
 def cmd_search(args) -> int:
@@ -1146,6 +1177,22 @@ def _print_formats(info: dict[str, Any]) -> None:
         print(f"{fmt}{suffix}: {descriptions.get(fmt, '')}")
 
 
+def _print_link_repair_result(result: dict[str, Any]) -> None:
+    mode = "rewritten" if result.get("write") else "dry run"
+    print(f"Link repair {mode}: {result.get('path')}")
+    print(f"Files scanned: {result.get('files_scanned', 0)}")
+    print(f"Files changed: {result.get('files_changed', 0)}")
+    print(f"Links seen: {result.get('links_seen', 0)}")
+    print(f"Links repaired: {result.get('links_repaired', 0)}")
+    unresolved = result.get("unresolved", [])
+    if unresolved:
+        print(f"Unresolved links: {len(unresolved)}")
+        for item in unresolved[:10]:
+            print(f"  {item.get('file')}: {item.get('target')}")
+        if len(unresolved) > 10:
+            print(f"  ... {len(unresolved) - 10} more")
+
+
 def _print_search_results(payload: dict[str, Any]) -> None:
     results = payload.get("results", [])
     if not results:
@@ -1185,6 +1232,13 @@ def _print_export_result(result: dict[str, Any]) -> None:
                 print(f"  {path}")
         else:
             print(f"{fmt}: {paths}")
+    link_repair = result.get("link_repair")
+    if link_repair:
+        print(
+            "Link repair: "
+            f"{link_repair.get('links_repaired', 0)} repaired, "
+            f"{len(link_repair.get('unresolved', []))} unresolved"
+        )
 
 
 def _print_batch_export_result(result: dict[str, Any]) -> None:
@@ -1227,6 +1281,7 @@ def _download_result_payload(result) -> dict[str, Any]:
         "output_dir": str(result.output_dir),
         "generated_files": _paths_to_strings(result.files),
         "chapters_count": result.chapters_count,
+        "link_repair": getattr(result, "link_repair", {}),
     }
 
 

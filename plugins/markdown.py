@@ -25,6 +25,7 @@ class MarkdownPlugin(Plugin):
     def save_chapter(self, html: str, title: str, output_path: Path):
         output_path.parent.mkdir(parents=True, exist_ok=True)
         markdown = self.convert(html, title)
+        markdown = self._repair_links(markdown, output_path, output_path.parent)
         output_path.write_text(markdown, encoding="utf-8")
 
     def generate_book(
@@ -57,7 +58,9 @@ class MarkdownPlugin(Plugin):
         for _, chapter_title, html in chapters:
             parts.append(self.convert(html, chapter_title))
 
-        output_path.write_text("\n\n".join(part for part in parts if part).strip() + "\n", encoding="utf-8")
+        markdown = "\n\n".join(part for part in parts if part).strip() + "\n"
+        markdown = self._repair_links(markdown, output_path, output_dir)
+        output_path.write_text(markdown, encoding="utf-8")
         return output_path
 
     def _generate_chapter_files(
@@ -76,7 +79,11 @@ class MarkdownPlugin(Plugin):
 
         for filename, title, html in chapters:
             md_filename = filename.replace(".html", ".md").replace(".xhtml", ".md")
-            self.save_chapter(html, title, md_dir / md_filename)
+            output_path = md_dir / md_filename
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            markdown = self.convert(html, title)
+            markdown = self._repair_links(markdown, output_path, output_dir)
+            output_path.write_text(markdown, encoding="utf-8")
             readme += f"- [{title}]({md_filename})\n"
 
         (md_dir / "README.md").write_text(readme, encoding="utf-8")
@@ -101,3 +108,12 @@ class MarkdownPlugin(Plugin):
     def _clean_whitespace(self, markdown: str) -> str:
         markdown = re.sub(r"\n{3,}", "\n\n", markdown)
         return markdown.strip() + "\n"
+
+    def _repair_links(self, markdown: str, output_path: Path, book_dir: Path) -> str:
+        if self.kernel is None:
+            return markdown
+        link_repair = self.kernel.get("link_repair")
+        if link_repair is None:
+            return markdown
+        repaired, _ = link_repair.repair_markdown(markdown, output_path, book_dir)
+        return repaired

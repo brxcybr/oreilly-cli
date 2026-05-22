@@ -102,6 +102,18 @@ List formats:
 python oreilly_cli.py formats
 ```
 
+Audit generated Markdown and chunk JSONL links without rewriting files:
+
+```bash
+python oreilly_cli.py repair-links "$HOME/Documents/OReillyExports"
+```
+
+Rewrite broken local links in place:
+
+```bash
+python oreilly_cli.py repair-links "$HOME/Documents/OReillyExports" --write
+```
+
 Search:
 
 ```bash
@@ -231,9 +243,30 @@ Common outputs:
 |--------|----------------|
 | Combined Markdown | `<output>/<book-slug>/<Book Title>.md` |
 | Separate Markdown | `<output>/<book-slug>/Markdown/` |
-| EPUB/PDF/text/JSON/chunks | Files under the book output directory |
+| Chunk JSONL | `<output>/<book-slug>/<Book Title>_chunks.jsonl` |
+| EPUB/PDF/text/JSON | Files under the book output directory |
 | Playlist manifest | `playlist-<playlist-id>-isbns.json` and `.csv` |
 
+Every downloaded book runs local link repair after export generation, including
+Markdown and chunk JSONL outputs. The same repair pass is available later with
+`repair-links`; by default it reports changes without rewriting, and `--write`
+updates `.md` and `.jsonl` files in place.
+
+Chunk exports keep local chapter XHTML files under `OEBPS/` as source/anchor
+targets. Chunk records use `chapter_filename` values such as
+`OEBPS/ch03.xhtml` so downstream RAG workflows can trace a chunk back to its
+chapter. Default chunking uses `--chunk-size 4000` and `--chunk-overlap 200`;
+the chunker stops at the final chunk instead of sliding through one-character
+overlap windows.
+
+Before publishing changes:
+
+- Do not commit `cookies.json`, cookie exports, `.env` files, private keys, or generated book output.
+- Do not commit raw browser captures or restricted playlist pages under `ref/`.
+- Do not commit real playlist UUIDs.
+- Run `git status --short` before committing.
+
+The repository ignores local credential files, generated output, playlist manifests, raw reference captures, and common macOS filesystem artifacts.
 ## Testing
 
 ```bash

@@ -19,6 +19,8 @@ __all__ = [
     "JsonExportPlugin",
     "ChunkingPlugin",
     "ChunkConfig",
+    "LinkRepairPlugin",
+    "LinkRepairReport",
     "OutputPlugin",
     "SystemPlugin",
     "DownloaderPlugin",
@@ -80,6 +82,13 @@ def __getattr__(name):
         from .chunking import ChunkConfig, ChunkingPlugin
 
         return {"ChunkingPlugin": ChunkingPlugin, "ChunkConfig": ChunkConfig}[name]
+    if name in {"LinkRepairPlugin", "LinkRepairReport"}:
+        from .link_repair import LinkRepairPlugin, LinkRepairReport
+
+        return {
+            "LinkRepairPlugin": LinkRepairPlugin,
+            "LinkRepairReport": LinkRepairReport,
+        }[name]
     if name == "OutputPlugin":
         from .output import OutputPlugin
 

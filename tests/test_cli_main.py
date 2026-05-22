@@ -154,6 +154,12 @@ class CliMainTests(unittest.TestCase):
         args = parser.parse_args(["export", "9781492056355", "--resume"])
         self.assertTrue(args.resume)
 
+    def test_repair_links_command_accepts_path_and_write(self):
+        parser = cli_main._build_parser()
+        args = parser.parse_args(["repair-links", "output", "--write"])
+        self.assertEqual(args.path, "output")
+        self.assertTrue(args.write)
+
     def test_export_help_mentions_resume(self):
         parser = cli_main._build_parser()
         with self.assertRaises(SystemExit):

@@ -33,6 +33,7 @@ class DownloadResult:
     output_dir: Path
     files: dict = field(default_factory=dict)  # {"epub": Path, "markdown": Path, ...}
     chapters_count: int = 0
+    link_repair: dict = field(default_factory=dict)
 
 
 class DownloaderPlugin(Plugin):
@@ -448,8 +449,22 @@ class DownloaderPlugin(Plugin):
             )
             result.files["chunks"] = str(chunks_path)
 
+        report("repairing_links", 99)
+        repair_report = self._repair_generated_links(book_dir)
+        if repair_report is not None:
+            result.link_repair = repair_report.as_dict()
+
         report("completed", 100)
         return result
+
+    def _repair_generated_links(self, book_dir: Path):
+        """Run the generated-output link repair workflow for a downloaded book."""
+        if self.kernel is None:
+            return None
+        link_repair = self.kernel.get("link_repair")
+        if link_repair is None:
+            return None
+        return link_repair.repair_directory(book_dir, write=True)
 
     def _cleanup_on_cancel(self, book_dir: Path):
         """Clean up partially downloaded book on cancellation."""

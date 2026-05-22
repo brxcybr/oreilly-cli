@@ -59,6 +59,7 @@ class ChunkingPlugin(Plugin):
                     chunk["chapter_index"] = chapter_index
                     chunk["chapter_title"] = ch_title
                     chunk["chapter_filename"] = filename
+                    chunk = self._repair_links(chunk, output_path, book_dir)
                     f.write(json.dumps(chunk, ensure_ascii=False) + "\n")
                     chunk_id += 1
 
@@ -103,8 +104,11 @@ class ChunkingPlugin(Plugin):
                     }
                 )
 
-            overlap_chars = self._estimate_char_position(text, end - overlap * 4, overlap) if overlap > 0 else 0
-            next_start = end - min(overlap_chars, end - start - 1)
+            if end >= text_len:
+                break
+
+            overlap_chars = min(overlap * 4, end - start - 1) if overlap > 0 else 0
+            next_start = end - overlap_chars
             start = max(next_start, start + 1)
 
         return chunks
@@ -158,3 +162,12 @@ class ChunkingPlugin(Plugin):
     def _get_token_count(self, text: str) -> int:
         """Estimate token count using word count heuristic (avoids tiktoken memory spikes)."""
         return int(len(text.split()) * 1.3)
+
+    def _repair_links(self, chunk: dict, output_path: Path, book_dir: Path) -> dict:
+        if self.kernel is None:
+            return chunk
+        link_repair = self.kernel.get("link_repair")
+        if link_repair is None:
+            return chunk
+        repaired, _ = link_repair.repair_chunk_record(chunk, output_path, book_dir)
+        return repaired

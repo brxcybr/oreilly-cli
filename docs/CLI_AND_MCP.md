@@ -264,6 +264,36 @@ Aliases:
 - `md` -> `markdown`
 - `txt` -> `plaintext`
 
+### `repair-links`
+
+Audits or repairs local links in generated Markdown and chunk JSONL files:
+
+```bash
+python oreilly_cli.py repair-links "$HOME/Documents/OReillyExports"
+python oreilly_cli.py repair-links "$HOME/Documents/OReillyExports" --write
+python oreilly_cli.py repair-links "$HOME/Documents/OReillyExports" --json
+```
+
+Without `--write`, the command is a dry run and reports how many files and link
+targets would change. With `--write`, it rewrites `.md` and `.jsonl` files in
+place. The repair pass resolves common generated-link failures including:
+
+- Markdown image paths that point at `Images/` when assets live under `OEBPS/Images/`;
+- chapter links that still point at `.html` when the exported chapter file is `.xhtml`;
+- nested publisher paths such as `../Text/...` or `html/...` after files are placed under `OEBPS/`;
+- chunk records whose `chapter_filename` points at the original source filename instead of the exported local file.
+
+Downloaded books run the same link repair after export generation, so
+`repair-links` is mainly for auditing existing exports or repairing output from
+older runs. The export result includes a `link_repair` summary with scanned,
+changed, repaired, and unresolved link counts.
+
+Chunk exports also participate in the repair pass. The generated JSONL keeps
+`chapter_filename` as a local link target, for example `OEBPS/ch03.xhtml`
+instead of the source `.html` filename. The linked XHTML files are retained
+chapter-content files used as source and trace-back anchors; they are not
+image/rendering assets.
+
 ### `search`
 
 Searches O'Reilly books through the existing book plugin:
@@ -490,6 +520,11 @@ python oreilly_cli.py \
   --chunk-overlap 200 \
   -o "$HOME/Documents/OReillyExports"
 ```
+
+The default chunker writes one JSONL record per chunk with source offsets,
+token estimate, chapter metadata, and repaired `chapter_filename` links. The
+overlap window is bounded and the final chunk terminates at end-of-text, so
+short chapters should not produce repeated near-duplicate chunks.
 
 ### Export Without Downloading Images
 

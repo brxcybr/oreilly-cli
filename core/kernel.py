@@ -32,6 +32,7 @@ def create_default_kernel() -> Kernel:
         PlainTextPlugin,
         JsonExportPlugin,
         ChunkingPlugin,
+        LinkRepairPlugin,
         OutputPlugin,
         SystemPlugin,
         DownloaderPlugin,
@@ -53,6 +54,7 @@ def create_default_kernel() -> Kernel:
     kernel.register("plaintext", PlainTextPlugin())
     kernel.register("json_export", JsonExportPlugin())
     kernel.register("chunking", ChunkingPlugin())
+    kernel.register("link_repair", LinkRepairPlugin())
     kernel.register("token", TokenPlugin())
 
     # Orchestration & system plugins
